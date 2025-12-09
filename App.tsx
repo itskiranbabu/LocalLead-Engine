@@ -10,14 +10,19 @@ import { Settings } from './pages/Settings';
 import { Templates } from './pages/Templates';
 import { Campaigns } from './pages/Campaigns';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { Login } from './pages/Login';
+import { Landing } from './pages/Landing';
+import { SystemStatus } from './components/SystemStatus';
 
 function AuthenticatedApp() {
   const [currentPage, setCurrentPage] = useState('dashboard');
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="h-screen flex items-center justify-center bg-slate-50 text-slate-400">Loading LocalLead Engine...</div>;
+  }
 
   if (!user) {
-    return <Login />;
+    return <Landing />;
   }
 
   const renderPage = () => {
@@ -35,7 +40,8 @@ function AuthenticatedApp() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+      <SystemStatus />
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
       <div className="flex-1 ml-64 flex flex-col h-full overflow-hidden">
         <main className="flex-1 overflow-y-auto">

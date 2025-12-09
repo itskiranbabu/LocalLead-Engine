@@ -1,6 +1,29 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { BusinessLead, CampaignStrategy } from "../types";
 
+// --- Rate Limiting Circuit Breaker ---
+let isSystemCoolingDown = false;
+let cooldownTimer: any = null;
+
+const triggerCooldown = (seconds: number) => {
+  if (isSystemCoolingDown) return;
+  
+  isSystemCoolingDown = true;
+  console.warn(`System cooling down for ${seconds} seconds...`);
+  
+  // Dispatch event for UI components
+  window.dispatchEvent(new CustomEvent('gemini-status-change', { 
+    detail: { status: 'cooling', duration: seconds * 1000 } 
+  }));
+
+  cooldownTimer = setTimeout(() => {
+    isSystemCoolingDown = false;
+    window.dispatchEvent(new CustomEvent('gemini-status-change', { 
+      detail: { status: 'online' } 
+    }));
+  }, seconds * 1000);
+};
+
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
@@ -20,14 +43,25 @@ const cleanJson = (text: string) => {
   return clean.trim();
 };
 
-export const callWithRetry = async (apiCall: () => Promise<any>, maxRetries = 3): Promise<any> => {
-  let delay = 1000;
+export const callWithRetry = async (apiCall: () => Promise<any>, maxRetries = 2): Promise<any> => {
+  if (isSystemCoolingDown) {
+    throw new Error("System is currently cooling down to manage AI quotas. Please try again in 30 seconds.");
+  }
+
+  let delay = 2000;
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await apiCall();
     } catch (error: any) {
-      if (error.status === 429 || error.message?.includes('429')) {
+      if (error.status === 429 || (error.message && error.message.includes('429')) || (error.message && error.message.includes('Quota'))) {
         console.warn(`Hit rate limit (429). Retrying in ${delay}ms...`);
+        
+        // If it's the last retry, trigger the global circuit breaker
+        if (i === maxRetries - 1) {
+          triggerCooldown(30); // 30 second global pause
+          throw new Error("API Quota Exceeded. System entering cooldown mode.");
+        }
+        
         await new Promise(resolve => setTimeout(resolve, delay));
         delay *= 2; // Exponential backoff
       } else {
@@ -35,7 +69,7 @@ export const callWithRetry = async (apiCall: () => Promise<any>, maxRetries = 3)
       }
     }
   }
-  throw new Error("API Quota Exceeded. Please try again later.");
+  throw new Error("API Request Failed.");
 };
 
 export const searchBusinessesWithMaps = async (
@@ -291,4 +325,28 @@ export const generateMarketingPitch = async (
         return { subject: "Partnership Opportunity", body: response.text || "" };
       }
   }
+};
+
+// --- CONTENT CALENDAR GENERATOR ---
+export const generateContentCalendar = async (lead: BusinessLead): Promise<string> => {
+    const ai = getAiClient();
+    const prompt = `
+    Act as a Social Media Strategist for the Indian market.
+    Create a 5-day Content Calendar for "${lead.name}" (Niche: ${lead.category}, City: ${lead.city}).
+    
+    Focus on local trends, festivals, or common customer behaviors in ${lead.city}.
+    
+    Format:
+    Day 1: [Post Idea] - [Caption Hook]
+    Day 2: ...
+    
+    Keep it concise and high-value. Plain text output.
+    `;
+
+    const response = await callWithRetry(() => ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt
+    }));
+
+    return response.text || "Could not generate calendar.";
 };

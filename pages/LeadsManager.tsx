@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { getLeads, updateLead, getCampaigns, saveLeads } from '../services/storageService';
-import { enrichLeadData } from '../services/geminiService';
+import { enrichLeadData, generateContentCalendar } from '../services/geminiService';
 import { BusinessLead, Campaign } from '../types';
-import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2 } from 'lucide-react';
+import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X } from 'lucide-react';
 
 export const LeadsManager: React.FC = () => {
   const [leads, setLeads] = useState<BusinessLead[]>([]);
@@ -10,6 +10,11 @@ export const LeadsManager: React.FC = () => {
   const [enriching, setEnriching] = useState<string | null>(null); // ID of lead being enriched
   const [filterCampaign, setFilterCampaign] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  
+  // Content Calendar State
+  const [calendarLead, setCalendarLead] = useState<BusinessLead | null>(null);
+  const [calendarContent, setCalendarContent] = useState<string>('');
+  const [generatingCalendar, setGeneratingCalendar] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -24,7 +29,6 @@ export const LeadsManager: React.FC = () => {
     setEnriching(lead.id);
     try {
       const enrichmentData = await enrichLeadData(lead);
-      
       const updated = { ...lead, ...enrichmentData };
       updateLead(updated);
       loadData(); // Refresh UI
@@ -32,6 +36,20 @@ export const LeadsManager: React.FC = () => {
       alert("Failed to enrich using AI. Check API Configuration.");
     } finally {
       setEnriching(null);
+    }
+  };
+
+  const handleGenerateCalendar = async (lead: BusinessLead) => {
+    setCalendarLead(lead);
+    setGeneratingCalendar(true);
+    setCalendarContent('');
+    try {
+        const content = await generateContentCalendar(lead);
+        setCalendarContent(content);
+    } catch (e) {
+        setCalendarContent("Failed to generate content calendar. Please try again.");
+    } finally {
+        setGeneratingCalendar(false);
     }
   };
 
@@ -107,7 +125,7 @@ export const LeadsManager: React.FC = () => {
   });
 
   return (
-    <div className="p-8 h-full flex flex-col">
+    <div className="p-8 h-full flex flex-col relative">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h2 className="text-3xl font-bold text-slate-800">My Leads</h2>
@@ -235,17 +253,24 @@ export const LeadsManager: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
+                             <button 
+                                onClick={() => handleGenerateCalendar(lead)}
+                                className="text-purple-600 hover:text-purple-800 font-medium text-xs flex items-center gap-1 bg-purple-50 p-1.5 rounded"
+                                title="Generate Content Calendar"
+                            >
+                                <CalendarDays size={14} />
+                            </button>
                             <button 
                                 onClick={() => handleEnrich(lead)}
                                 disabled={!!enriching}
-                                className="text-blue-600 hover:text-blue-800 font-medium text-xs flex items-center gap-1"
+                                className="text-blue-600 hover:text-blue-800 font-medium text-xs flex items-center gap-1 bg-blue-50 p-1.5 rounded"
                                 title="AI Enrichment"
                             >
                             {enriching === lead.id ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                             </button>
                             <button 
                                 onClick={() => handleDelete(lead.id)}
-                                className="text-slate-400 hover:text-red-600 transition-colors"
+                                className="text-slate-400 hover:text-red-600 transition-colors p-1.5"
                                 title="Delete Lead"
                             >
                                 <Trash2 size={14} />
@@ -259,6 +284,43 @@ export const LeadsManager: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Content Calendar Modal */}
+      {calendarLead && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-in fade-in zoom-in duration-200">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-800">5-Day Content Plan</h3>
+                        <p className="text-sm text-slate-500">For {calendarLead.name} ({calendarLead.city})</p>
+                    </div>
+                    <button onClick={() => setCalendarLead(null)} className="text-slate-400 hover:text-slate-600">
+                        <X size={24} />
+                    </button>
+                </div>
+                <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+                    {generatingCalendar ? (
+                        <div className="flex flex-col items-center justify-center py-12">
+                            <Loader2 className="animate-spin text-purple-600 mb-4" size={48} />
+                            <p className="text-slate-500 font-medium">Researching local trends in {calendarLead.city}...</p>
+                        </div>
+                    ) : (
+                        <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-700 font-medium">
+                            {calendarContent}
+                        </div>
+                    )}
+                </div>
+                <div className="p-4 border-t border-slate-100 bg-white rounded-b-xl flex justify-end">
+                    <button 
+                        onClick={() => setCalendarLead(null)}
+                        className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
