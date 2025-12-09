@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getLeads, updateLead } from '../services/storageService';
 import { BusinessLead } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
-import { Users, Send, MessageSquare, TrendingUp, RefreshCcw } from 'lucide-react';
+import { Users, Send, MessageSquare, TrendingUp, RefreshCcw, IndianRupee } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -10,6 +10,7 @@ export const Dashboard: React.FC = () => {
     contacted: 0,
     replied: 0,
     conversionRate: 0,
+    pipelineValue: 0,
     byCity: [] as any[]
   });
   const [loading, setLoading] = useState(false);
@@ -24,6 +25,9 @@ export const Dashboard: React.FC = () => {
     const contacted = leads.filter(l => l.status !== 'new').length;
     const replied = leads.filter(l => l.status === 'replied' || l.status === 'converted').length;
     
+    // Calculate Pipeline Value (defaulting to 0 if undefined)
+    const pipelineValue = leads.reduce((sum, lead) => sum + (lead.potentialValue || 0), 0);
+
     // Aggregate by city
     const cityCount = leads.reduce((acc: any, lead) => {
         acc[lead.city] = (acc[lead.city] || 0) + 1;
@@ -39,6 +43,7 @@ export const Dashboard: React.FC = () => {
         total,
         contacted,
         replied,
+        pipelineValue,
         conversionRate: contacted ? Math.round((replied / contacted) * 100) : 0,
         byCity: chartData
     });
@@ -47,7 +52,6 @@ export const Dashboard: React.FC = () => {
   const simulateReplies = () => {
     setLoading(true);
     const leads = getLeads();
-    // Find contacted leads that haven't replied yet
     const candidates = leads.filter(l => l.status === 'contacted');
     
     if (candidates.length === 0) {
@@ -56,7 +60,6 @@ export const Dashboard: React.FC = () => {
         return;
     }
 
-    // Randomly pick 1-3 leads to reply
     const count = Math.min(candidates.length, Math.floor(Math.random() * 3) + 1);
     const shuffled = [...candidates].sort(() => 0.5 - Math.random());
     const selected = shuffled.slice(0, count);
@@ -70,6 +73,14 @@ export const Dashboard: React.FC = () => {
         setLoading(false);
         alert(`Simulated ${count} new replies!`);
     }, 800);
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(value);
   };
 
   return (
@@ -91,11 +102,11 @@ export const Dashboard: React.FC = () => {
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
             <div className="flex justify-between items-start">
                 <div>
-                    <p className="text-slate-500 text-sm font-medium">Total Leads</p>
-                    <h3 className="text-3xl font-bold text-slate-800 mt-2">{stats.total}</h3>
+                    <p className="text-slate-500 text-sm font-medium">Pipeline Value</p>
+                    <h3 className="text-2xl font-bold text-slate-800 mt-2">{formatCurrency(stats.pipelineValue)}</h3>
                 </div>
-                <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
-                    <Users size={20} />
+                <div className="bg-green-100 p-2 rounded-lg text-green-700">
+                    <IndianRupee size={20} />
                 </div>
             </div>
         </div>
@@ -116,7 +127,7 @@ export const Dashboard: React.FC = () => {
                     <p className="text-slate-500 text-sm font-medium">Replies</p>
                     <h3 className="text-3xl font-bold text-slate-800 mt-2">{stats.replied}</h3>
                 </div>
-                <div className="bg-green-100 p-2 rounded-lg text-green-600">
+                <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
                     <MessageSquare size={20} />
                 </div>
             </div>

@@ -111,10 +111,10 @@ export const getSettings = (): AppSettings => {
     companyName: 'Content Spark',
     dailyEmailLimit: 50,
     offerings: [
-      'Full-Stack Digital Marketing',
-      'SEO & Local Domination',
-      'Social Media Growth',
-      'High-Converting Web Design'
+      'Social Media Marketing',
+      'Local SEO (GMB)',
+      'Lead Generation Ads',
+      'Web Design & Dev'
     ]
   };
 };

@@ -20,6 +20,24 @@ const cleanJson = (text: string) => {
   return clean.trim();
 };
 
+export const callWithRetry = async (apiCall: () => Promise<any>, maxRetries = 3): Promise<any> => {
+  let delay = 1000;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await apiCall();
+    } catch (error: any) {
+      if (error.status === 429 || error.message?.includes('429')) {
+        console.warn(`Hit rate limit (429). Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff
+      } else {
+        throw error;
+      }
+    }
+  }
+  throw new Error("API Quota Exceeded. Please try again later.");
+};
+
 export const searchBusinessesWithMaps = async (
   city: string,
   niche: string
@@ -28,7 +46,7 @@ export const searchBusinessesWithMaps = async (
 
   // Note: When using googleMaps tool, we CANNOT use responseMimeType: "application/json" or responseSchema.
   // We must ask for JSON in the prompt and parse the text manually.
-  const prompt = `Find 5-10 real ${niche} businesses in ${city}.
+  const prompt = `Find 5-10 real ${niche} businesses in ${city}, India.
   Use Google Maps to verify they exist.
   
   Strictly output a JSON array of objects. Do not include any markdown formatting or explanation outside the JSON.
@@ -43,13 +61,13 @@ export const searchBusinessesWithMaps = async (
   Example format:
   [{"name": "Example", "address": "123 Main St", "rating": 4.5, "website": "...", "phone": "...", "snippet": "..."}]`;
 
-  const response = await ai.models.generateContent({
+  const response = await callWithRetry(() => ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: prompt,
     config: {
       tools: [{ googleMaps: {} }],
     }
-  });
+  }));
 
   const text = response.text || "[]";
   let rawData: any[] = [];
@@ -88,28 +106,16 @@ export const enrichLeadData = async (
 ): Promise<Partial<BusinessLead>> => {
   const ai = getAiClient();
 
-  // Note: googleSearch tool also forbids responseSchema/MimeType.
-  const prompt = `Find the public contact email or contact page URL for the business "${lead.name}" located in "${lead.city}".
-  Also find the name of the owner or a key decision maker if publicly available.
-  If phone number is missing, try to find it.
-  Use Google Search Grounding to ensure accuracy.
-  
-  Strictly output a JSON object. Do not use markdown.
-  Format:
-  {
-    "email": "string or null",
-    "contactName": "string or null",
-    "phone": "string or null",
-    "notes": "string (brief info on source)"
-  }`;
+  const prompt = `Find contact info for "${lead.name}" in "${lead.city}".
+  Output JSON: {"email": "string|null", "contactName": "string|null", "phone": "string|null", "notes": "string"}`;
 
-  const response = await ai.models.generateContent({
+  const response = await callWithRetry(() => ai.models.generateContent({
     model: "gemini-2.5-flash", 
     contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
     }
-  });
+  }));
 
   const text = response.text || "{}";
   let data: any = {};
@@ -117,17 +123,14 @@ export const enrichLeadData = async (
   try {
     data = JSON.parse(cleanJson(text));
   } catch (e) {
-    console.warn("JSON parse error in enrichment:", text);
     const match = text.match(/\{.*\}/s);
     if (match) {
         try { data = JSON.parse(match[0]); } catch (e2) {}
     }
   }
 
-  // Extract search grounding chunks for source verification
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
   let sourceLinks = "";
-  
   groundingChunks.forEach((chunk: any) => {
     if (chunk.web?.uri) {
       sourceLinks += ` ${chunk.web.uri}`;
@@ -149,15 +152,15 @@ export const generateCampaignStrategy = async (
 ): Promise<CampaignStrategy> => {
   const ai = getAiClient();
 
-  const prompt = `Develop a comprehensive cold outreach strategy for targeting ${niche} in ${city}.
-  Think deeply about the local market dynamics, potential pain points for this specific business type, and how to approach them effectively.
-  Provide a structured JSON output.`;
+  const prompt = `Develop a cold outreach strategy for ${niche} in ${city}, India.
+  Consider local market dynamics.
+  Provide structured JSON output.`;
 
-  const response = await ai.models.generateContent({
+  const response = await callWithRetry(() => ai.models.generateContent({
     model: "gemini-3-pro-preview", 
     contents: prompt,
     config: {
-      thinkingConfig: { thinkingBudget: 32768 },
+      thinkingConfig: { thinkingBudget: 1024 }, // Reduced budget to save tokens/time for this demo
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -170,7 +173,7 @@ export const generateCampaignStrategy = async (
         }
       }
     }
-  });
+  }));
 
   return JSON.parse(response.text || "{}");
 };
@@ -180,47 +183,47 @@ export const quickPolishEmail = async (
 ): Promise<string> => {
   const ai = getAiClient();
 
-  const response = await ai.models.generateContent({
+  const response = await callWithRetry(() => ai.models.generateContent({
     model: "gemini-flash-lite-latest",
-    contents: `Polish this email draft to be more professional yet conversational. Keep it concise. Draft: "${draft}"`,
-  });
+    contents: `Polish this email draft for an Indian business audience. Professional, polite, concise. Draft: "${draft}"`,
+  }));
 
   return response.text || draft;
 };
 
-// --- CONTENT SPARK BRAND DATA ---
+// --- CONTENT SPARK BRAND DATA (INDIA EDITION) ---
 const COMPANY_CONTEXT = `
-You are the Head of Sales for "Content Spark". 
-Content Spark is a premium digital growth agency.
+You are the Head of Sales for "Content Spark", a premium digital growth agency in India.
 
-OUR SERVICE PACKAGES & PRICING:
-1. SPARK STARTER ($499/mo)
+OUR SERVICE PACKAGES & PRICING (INR):
+1. SPARK STARTER (₹20,000/mo + GST)
    - 12 High-Quality Social Media Posts (IG/FB/LinkedIn)
-   - Basic SEO Setup (Google My Business Optimization)
+   - Basic SEO Setup (Google Business Profile Optimization)
    - Monthly Performance Report
-   - Email Support
+   - WhatsApp Support
 
-2. BUSINESS IGNITE ($999/mo) - *Most Popular*
+2. BUSINESS IGNITE (₹45,000/mo + GST) - *Best Value*
    - 20 Social Posts + 4 Reels/Shorts
-   - Advanced SEO (Keyword Research + 2 Blog Articles)
-   - Paid Ads Management (Up to $1k ad spend included)
+   - Advanced SEO (Keyword Research + 2 Blogs)
+   - Paid Ads Management (Up to ₹50k ad spend included)
    - Bi-weekly Strategy Calls
 
-3. BRAND DOMINATION ($1,999/mo)
+3. BRAND DOMINATION (₹90,000/mo + GST)
    - Daily Content (Post + Story Management)
    - Full-Stack SEO (Backlinking + Technical Audit)
    - Complete Funnel Build & Optimization
-   - Dedicated Account Manager & 24/7 Priority Support
+   - Dedicated Account Manager
    - Unlimited Ad Spend Management
 
 CORE VALUE PROPOSITION:
 - We don't just post content; we build revenue engines.
-- Data-driven approach.
+- Data-driven approach suitable for the Indian market.
 - 100% Transparency.
 
 YOUR TONE:
-- Professional, confident, consultative. Not pushy.
-- Focus on ROI and solving the lead's specific pain points (e.g., getting more foot traffic, ranking higher on Maps).
+- Professional, respectful, consultatitve.
+- Use culturally appropriate greetings (e.g., "Hello Team", "Namaste", or addressing by name).
+- Focus on ROI and solving local pain points (e.g., beating local competitors, getting more calls).
 `;
 
 export const generateMarketingPitch = async (
@@ -236,17 +239,17 @@ export const generateMarketingPitch = async (
     prompt = `
     ${COMPANY_CONTEXT}
     
-    TASK: Write a professional WhatsApp message to a potential client.
+    TASK: Write a professional WhatsApp message to a potential client in India.
     LEAD: ${lead.name} (${lead.category} in ${lead.city}).
     OFFERING FOCUSED ON: ${offering}.
 
     GUIDELINES:
-    - Start with a polite, professional greeting.
+    - Start with "Hello [Name]" or "Namaste [Name]".
     - Mention "Content Spark" clearly.
-    - Mention the "Spark Starter" plan starting at $499/mo as a low-friction entry point.
-    - Use line breaks for readability.
-    - Use 2-3 professional emojis (e.g., 🚀, 📈, ✨).
-    - End with a low-pressure question (e.g., "Would you be open to seeing a quick plan?").
+    - Briefly mention the "Spark Starter" plan starting at ₹20,000/mo.
+    - Use line breaks for readability on mobile.
+    - Use 2-3 professional emojis (e.g., 🚀, 📈, 🙏).
+    - End with a low-pressure question (e.g., "Can I share a quick PDF deck?").
     - Keep it under 100 words.
     
     Output strictly the message body text.`;
@@ -254,30 +257,30 @@ export const generateMarketingPitch = async (
     prompt = `
     ${COMPANY_CONTEXT}
 
-    TASK: Write a high-converting cold email.
+    TASK: Write a high-converting cold email for an Indian business owner.
     LEAD: ${lead.name} (${lead.category} in ${lead.city}).
     OFFERING FOCUSED ON: ${offering}.
     GOAL: Book a 15-min discovery call.
 
     STRUCTURE:
-    1. SUBJECT LINE: Catchy, relevant to ${lead.city} or ${lead.category}.
-    2. OPENER: Personalized observation about ${lead.name}.
-    3. THE PROBLEM: A common pain point for ${lead.category} businesses (e.g., low visibility, relying on word of mouth).
-    4. THE SOLUTION: Introduce Content Spark and how we fix this.
-    5. THE OFFER: Briefly mention our tiered pricing to show transparency (Starter at $499, Scaling at $999). Mention "Dedicated Account Manager" support for higher tiers.
+    1. SUBJECT LINE: Professional & relevant to ${lead.city}.
+    2. OPENER: Respectful observation about ${lead.name}.
+    3. THE PROBLEM: A common pain point for ${lead.category} businesses in India.
+    4. THE SOLUTION: Introduce Content Spark.
+    5. THE OFFER: Mention tiered pricing (Starter at ₹20k, Scaling at ₹45k). Emphasize "Dedicated Support".
     6. CTA: Specific call to action.
 
     Output a JSON object with "subject" and "body" fields.
     `;
   }
 
-  const response = await ai.models.generateContent({
+  const response = await callWithRetry(() => ai.models.generateContent({
     model: "gemini-2.5-flash",
     contents: prompt,
     config: {
         responseMimeType: channel === 'email' ? "application/json" : "text/plain"
     }
-  });
+  }));
 
   if (channel === 'whatsapp') {
     return { body: response.text || "" };

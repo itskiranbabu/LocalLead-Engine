@@ -15,6 +15,9 @@ export interface BusinessLead {
   addedAt: string;
   mapUrl?: string; // Google Maps grounding URL
   campaignId?: string; // Associated campaign
+  potentialValue?: number;
+  score?: number;
+  tags?: string[];
 }
 
 export interface EmailTemplate {

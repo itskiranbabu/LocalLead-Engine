@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Loader2, Plus, ExternalLink, Globe } from 'lucide-react';
+import { Search, MapPin, Loader2, Plus, ExternalLink, Globe, AlertTriangle } from 'lucide-react';
 import { searchBusinessesWithMaps } from '../services/geminiService';
 import { addLeads, getSettings } from '../services/storageService';
 import { BusinessLead } from '../types';
@@ -21,10 +21,41 @@ export const LeadSearch: React.FC = () => {
     setResults([]);
     try {
       const leads = await searchBusinessesWithMaps(city, niche);
-      setResults(leads);
+      
+      // Auto-tagging and scoring logic
+      const processed = leads.map(l => {
+          const tags: string[] = [];
+          let score = 50; // Base score
+
+          if (!l.website) {
+              tags.push('Needs Website');
+              score += 20; // High opportunity if we sell web design
+          }
+          if (l.rating && l.rating < 4.0) {
+              tags.push('Reputation Mgmt');
+              score += 10;
+          }
+          if (l.rating && l.rating > 4.5) {
+              score += 10; // Good business likely to pay
+          }
+          if (l.phone) score += 10;
+
+          return {
+              ...l,
+              score: Math.min(score, 100),
+              tags,
+              potentialValue: 25000 // Default value in INR (₹25,000)
+          };
+      });
+
+      setResults(processed);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'An error occurred during search.');
+      if (err.message && err.message.includes('Quota')) {
+        setError('AI Quota Exceeded. Please wait a moment or upgrade your plan.');
+      } else {
+        setError(err.message || 'An error occurred during search.');
+      }
     } finally {
       setLoading(false);
     }
@@ -41,13 +72,23 @@ export const LeadSearch: React.FC = () => {
     const toSave = results.filter(r => r.id && selectedIds.has(r.id)) as BusinessLead[];
     addLeads(toSave);
     
-    // Check if connected to sheets (mock)
     const settings: any = getSettings();
     const sheetsMsg = settings.googleSheetsConnected ? " and synced to Google Sheets" : "";
+    
+    // Calculate total potential value added
+    const totalVal = toSave.reduce((acc, curr) => acc + (curr.potentialValue || 0), 0);
+    const formattedVal = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(totalVal);
 
-    alert(`Saved ${toSave.length} leads to your database${sheetsMsg}!`);
+    alert(`Saved ${toSave.length} leads!\nAdded Pipeline Value: ${formattedVal}${sheetsMsg}`);
     setSelectedIds(new Set());
     setResults([]);
+  };
+
+  const getScoreColor = (score?: number) => {
+      if (!score) return 'bg-slate-100 text-slate-500';
+      if (score >= 80) return 'bg-green-100 text-green-700';
+      if (score >= 60) return 'bg-yellow-100 text-yellow-700';
+      return 'bg-red-100 text-red-700';
   };
 
   return (
@@ -65,7 +106,7 @@ export const LeadSearch: React.FC = () => {
               <MapPin className="absolute left-3 top-3 text-slate-400" size={18} />
               <input
                 type="text"
-                placeholder="e.g. Austin, TX"
+                placeholder="e.g. Pune, Bangalore, Mumbai"
                 className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
@@ -79,7 +120,7 @@ export const LeadSearch: React.FC = () => {
               <Search className="absolute left-3 top-3 text-slate-400" size={18} />
               <input
                 type="text"
-                placeholder="e.g. Dentists, Coffee Shops"
+                placeholder="e.g. Dentists, Cafes, Boutiques"
                 className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
                 value={niche}
                 onChange={(e) => setNiche(e.target.value)}
@@ -95,7 +136,11 @@ export const LeadSearch: React.FC = () => {
             {loading ? <Loader2 className="animate-spin" /> : 'Search Maps'}
           </button>
         </form>
-        {error && <p className="text-red-500 mt-3 text-sm">{error}</p>}
+        {error && (
+            <div className="mt-4 p-3 bg-red-50 text-red-700 text-sm rounded-lg flex items-center gap-2">
+                <AlertTriangle size={16} /> {error}
+            </div>
+        )}
       </div>
 
       {results.length > 0 && (
@@ -117,7 +162,7 @@ export const LeadSearch: React.FC = () => {
               {results.map((item) => (
                 <div 
                   key={item.id} 
-                  className={`border rounded-lg p-4 transition-all cursor-pointer ${
+                  className={`border rounded-lg p-4 transition-all cursor-pointer relative ${
                     selectedIds.has(item.id!) 
                       ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' 
                       : 'border-slate-200 hover:border-blue-300 hover:shadow-md'
@@ -125,18 +170,30 @@ export const LeadSearch: React.FC = () => {
                   onClick={() => item.id && toggleSelection(item.id)}
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-bold text-slate-800 line-clamp-1">{item.name}</h4>
-                    {item.rating && (
-                      <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-full flex items-center">
-                        ★ {item.rating}
-                      </span>
-                    )}
+                    <h4 className="font-bold text-slate-800 line-clamp-1 pr-8">{item.name}</h4>
+                    <span className={`absolute top-4 right-4 text-[10px] font-bold px-2 py-0.5 rounded-full ${getScoreColor(item.score)}`}>
+                        {item.score}
+                    </span>
                   </div>
-                  <p className="text-sm text-slate-500 mb-2 flex items-start gap-1">
-                    <MapPin size={14} className="mt-0.5 shrink-0" />
-                    {item.address}
-                  </p>
                   
+                  <div className="flex items-center gap-1 mb-2">
+                    {item.rating && (
+                        <span className="text-xs font-bold text-amber-600 flex items-center">
+                            ★ {item.rating}
+                        </span>
+                    )}
+                    <span className="text-slate-300 mx-1">|</span>
+                    <span className="text-xs text-slate-500 truncate max-w-[150px]">{item.address}</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1 mb-3">
+                      {item.tags?.map((tag: string, i: number) => (
+                          <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
+                              {tag}
+                          </span>
+                      ))}
+                  </div>
+
                   <div className="flex flex-wrap gap-2 mt-3">
                     {item.website && (
                       <a 
@@ -147,7 +204,7 @@ export const LeadSearch: React.FC = () => {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <Globe size={12} />
-                        Website
+                        Web
                       </a>
                     )}
                     <a 
@@ -158,7 +215,7 @@ export const LeadSearch: React.FC = () => {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <ExternalLink size={12} />
-                        Google Maps
+                        Map
                     </a>
                   </div>
 
