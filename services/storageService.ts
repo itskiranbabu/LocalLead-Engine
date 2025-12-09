@@ -109,7 +109,8 @@ export const getSettings = (): AppSettings => {
   return data ? JSON.parse(data) : {
     userName: '',
     companyName: '',
-    dailyEmailLimit: 50
+    dailyEmailLimit: 50,
+    offerings: ['Digital Marketing', 'Web Design', 'SEO Services']
   };
 };
 

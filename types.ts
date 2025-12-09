@@ -47,4 +47,5 @@ export interface AppSettings {
   userName: string;
   companyName: string;
   dailyEmailLimit: number;
+  offerings: string[]; // List of services the user sells
 }

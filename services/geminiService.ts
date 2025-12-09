@@ -1,7 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { BusinessLead, CampaignStrategy } from "../types";
 
-const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAiClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.error("API_KEY is missing. AI features will fail.");
+  }
+  return new GoogleGenAI({ apiKey: apiKey });
+};
 
 // Helper to clean JSON from markdown
 const cleanJson = (text: string) => {
@@ -180,4 +186,46 @@ export const quickPolishEmail = async (
   });
 
   return response.text || draft;
+};
+
+export const generateMarketingPitch = async (
+  lead: BusinessLead,
+  offering: string,
+  channel: 'email' | 'whatsapp'
+): Promise<{ subject?: string; body: string }> => {
+  const ai = getAiClient();
+
+  let prompt = "";
+  
+  if (channel === 'whatsapp') {
+    prompt = `Write a short, friendly, and professional WhatsApp message to ${lead.name} (a ${lead.category} in ${lead.city}).
+    My company offers ${offering}.
+    Goal: Start a conversation.
+    Constraints: Under 60 words. No subject line. Use 1 or 2 relevant emojis. Don't be spammy.
+    Output only the message body.`;
+  } else {
+    prompt = `Write a professional cold email to ${lead.name} (a ${lead.category} in ${lead.city}).
+    My company offers ${offering}.
+    Goal: Book a meeting.
+    Constraints: Concise, persuasive, focus on value for the ${lead.category} niche.
+    Output a JSON object with "subject" and "body" fields.`;
+  }
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: {
+        responseMimeType: channel === 'email' ? "application/json" : "text/plain"
+    }
+  });
+
+  if (channel === 'whatsapp') {
+    return { body: response.text || "" };
+  } else {
+      try {
+        return JSON.parse(response.text || "{}");
+      } catch (e) {
+        return { subject: "Partnership Opportunity", body: response.text || "" };
+      }
+  }
 };

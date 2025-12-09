@@ -14,6 +14,8 @@ export const LeadSearch: React.FC = () => {
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!city.trim() || !niche.trim()) return;
+    
     setLoading(true);
     setError(null);
     setResults([]);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSettings, saveSettings } from '../services/storageService';
 import { AppSettings } from '../types';
-import { Save, Sheet, Check, LogOut } from 'lucide-react';
+import { Save, Sheet, Check, LogOut, Plus, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface ExtendedSettings extends AppSettings {
@@ -15,14 +15,19 @@ export const Settings: React.FC = () => {
     userName: '',
     companyName: '',
     dailyEmailLimit: 50,
+    offerings: [],
     googleSheetsConnected: false,
     googleSheetId: ''
   });
+  const [newOffering, setNewOffering] = useState('');
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const loaded = getSettings() as ExtendedSettings;
-    setFormData(loaded);
+    setFormData({
+        ...loaded,
+        offerings: loaded.offerings || [] 
+    });
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,6 +46,23 @@ export const Settings: React.FC = () => {
         ...prev,
         googleSheetsConnected: !prev.googleSheetsConnected,
         googleSheetId: !prev.googleSheetsConnected ? '1BxiMvs0XRA5nFNY...' : ''
+    }));
+  };
+
+  const addOffering = () => {
+    if (newOffering.trim()) {
+        setFormData(prev => ({
+            ...prev,
+            offerings: [...prev.offerings, newOffering.trim()]
+        }));
+        setNewOffering('');
+    }
+  };
+
+  const removeOffering = (index: number) => {
+    setFormData(prev => ({
+        ...prev,
+        offerings: prev.offerings.filter((_, i) => i !== index)
     }));
   };
 
@@ -83,6 +105,42 @@ export const Settings: React.FC = () => {
                     className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
+              </div>
+          </section>
+
+          {/* My Services Section */}
+          <section>
+              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">My Offerings</h3>
+              <p className="text-sm text-slate-500 mb-4">Define the services you want to pitch to leads. AI will use these to generate tailored messages.</p>
+              
+              <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={newOffering}
+                    onChange={e => setNewOffering(e.target.value)}
+                    placeholder="e.g. Social Media Management"
+                    className="flex-1 px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addOffering())}
+                  />
+                  <button 
+                    type="button"
+                    onClick={addOffering}
+                    className="bg-slate-800 text-white px-4 py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2"
+                  >
+                    <Plus size={16} /> Add
+                  </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                  {formData.offerings.length === 0 && <span className="text-slate-400 text-sm italic">No services added yet.</span>}
+                  {formData.offerings.map((offering, idx) => (
+                      <div key={idx} className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-2 border border-blue-100">
+                          {offering}
+                          <button type="button" onClick={() => removeOffering(idx)} className="hover:text-red-500">
+                              <X size={14} />
+                          </button>
+                      </div>
+                  ))}
               </div>
           </section>
 
