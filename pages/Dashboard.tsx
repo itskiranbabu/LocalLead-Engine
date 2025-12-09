@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getLeads, updateLead } from '../services/storageService';
-import { BusinessLead } from '../types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
-import { Users, Send, MessageSquare, TrendingUp, RefreshCcw, IndianRupee } from 'lucide-react';
+import { Send, MessageSquare, TrendingUp, RefreshCcw, IndianRupee } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
   const [stats, setStats] = useState({
@@ -19,8 +18,8 @@ export const Dashboard: React.FC = () => {
     loadStats();
   }, []);
 
-  const loadStats = () => {
-    const leads = getLeads();
+  const loadStats = async () => {
+    const leads = await getLeads();
     const total = leads.length;
     const contacted = leads.filter(l => l.status !== 'new').length;
     const replied = leads.filter(l => l.status === 'replied' || l.status === 'converted').length;
@@ -49,9 +48,9 @@ export const Dashboard: React.FC = () => {
     });
   };
 
-  const simulateReplies = () => {
+  const simulateReplies = async () => {
     setLoading(true);
-    const leads = getLeads();
+    const leads = await getLeads();
     const candidates = leads.filter(l => l.status === 'contacted');
     
     if (candidates.length === 0) {
@@ -64,9 +63,9 @@ export const Dashboard: React.FC = () => {
     const shuffled = [...candidates].sort(() => 0.5 - Math.random());
     const selected = shuffled.slice(0, count);
 
-    selected.forEach(l => {
-        updateLead({ ...l, status: 'replied' });
-    });
+    for (const l of selected) {
+        await updateLead({ ...l, status: 'replied' });
+    }
 
     setTimeout(() => {
         loadStats();

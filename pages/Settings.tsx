@@ -23,20 +23,24 @@ export const Settings: React.FC = () => {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const loaded = getSettings() as ExtendedSettings;
-    setFormData({
-        ...loaded,
-        offerings: loaded.offerings || [] 
-    });
+    loadData();
   }, []);
+
+  const loadData = async () => {
+      const loaded = await getSettings() as ExtendedSettings;
+      setFormData({
+          ...loaded,
+          offerings: loaded.offerings || [] 
+      });
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    saveSettings(formData);
+    await saveSettings(formData);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };

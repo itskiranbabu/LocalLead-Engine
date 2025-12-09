@@ -68,11 +68,11 @@ export const LeadSearch: React.FC = () => {
     setSelectedIds(next);
   };
 
-  const saveSelected = () => {
+  const saveSelected = async () => {
     const toSave = results.filter(r => r.id && selectedIds.has(r.id)) as BusinessLead[];
-    addLeads(toSave);
+    await addLeads(toSave);
     
-    const settings: any = getSettings();
+    const settings = await getSettings();
     const sheetsMsg = settings.googleSheetsConnected ? " and synced to Google Sheets" : "";
     
     // Calculate total potential value added

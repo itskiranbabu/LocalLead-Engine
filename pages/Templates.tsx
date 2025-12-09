@@ -12,8 +12,8 @@ export const Templates: React.FC = () => {
     loadTemplates();
   }, []);
 
-  const loadTemplates = () => {
-    setTemplates(getTemplates());
+  const loadTemplates = async () => {
+    setTemplates(await getTemplates());
   };
 
   const handleEdit = (template: EmailTemplate) => {
@@ -33,12 +33,12 @@ export const Templates: React.FC = () => {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (formData.id && formData.name && formData.subject && formData.body) {
-      saveTemplate(formData as EmailTemplate);
+      await saveTemplate(formData as EmailTemplate);
       setEditingId(null);
       setFormData({});
-      loadTemplates();
+      await loadTemplates();
     } else {
       alert("Please fill in all fields.");
     }
@@ -49,10 +49,10 @@ export const Templates: React.FC = () => {
     setFormData({});
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this template?")) {
-      deleteTemplate(id);
-      loadTemplates();
+      await deleteTemplate(id);
+      await loadTemplates();
     }
   };
 

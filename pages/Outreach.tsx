@@ -3,7 +3,6 @@ import { getLeads, getSettings, updateLead, getTemplates, getCampaigns } from '.
 import { quickPolishEmail, generateMarketingPitch } from '../services/geminiService';
 import { BusinessLead, EmailTemplate, Campaign } from '../types';
 import { Send, Wand2, RefreshCw, ChevronDown, Filter, Mail, Play, Loader2, CheckCircle, MessageCircle, ExternalLink, Sparkles } from 'lucide-react';
-import { Link } from 'lucide-react';
 
 type Channel = 'email' | 'whatsapp';
 
@@ -33,11 +32,11 @@ export const Outreach: React.FC = () => {
     loadData();
   }, [selectedCampaignId, sentCount]); 
 
-  const loadData = () => {
-    const allLeads = getLeads();
-    const allTemplates = getTemplates();
-    const allCampaigns = getCampaigns();
-    const settings = getSettings();
+  const loadData = async () => {
+    const allLeads = await getLeads();
+    const allTemplates = await getTemplates();
+    const allCampaigns = await getCampaigns();
+    const settings = await getSettings();
     
     setTemplates(allTemplates);
     setCampaigns(allCampaigns);
@@ -49,8 +48,6 @@ export const Outreach: React.FC = () => {
     const actionable = allLeads.filter(l => {
         const matchesStatus = l.status === 'new' || l.status === 'contacted'; // Show recent ones too
         const matchesCampaign = selectedCampaignId === 'all' || l.campaignId === selectedCampaignId;
-        // If channel is email, need email. If whatsapp, need phone.
-        // But for queue list, we just show all matches and validate on selection
         return matchesStatus && matchesCampaign;
     });
     
@@ -123,7 +120,7 @@ export const Outreach: React.FC = () => {
       }
   };
 
-  const handleSendSingle = () => {
+  const handleSendSingle = async () => {
     if (!currentLead) return;
     
     if (activeChannel === 'whatsapp') {
@@ -140,12 +137,12 @@ export const Outreach: React.FC = () => {
         const url = `https://wa.me/${phone}?text=${text}`;
         
         window.open(url, '_blank');
-        updateLead({ ...currentLead, status: 'contacted' });
+        await updateLead({ ...currentLead, status: 'contacted' });
         setSentCount(prev => prev + 1);
 
     } else {
         // Email simulation
-        updateLead({ ...currentLead, status: 'contacted' });
+        await updateLead({ ...currentLead, status: 'contacted' });
         alert(`Email simulated sent to ${currentLead.email}!`);
         setSentCount(prev => prev + 1);
     }
@@ -173,7 +170,7 @@ export const Outreach: React.FC = () => {
         // Mock API latency
         await new Promise(r => setTimeout(r, 1500));
         
-        updateLead({ ...lead, status: 'contacted' });
+        await updateLead({ ...lead, status: 'contacted' });
         setSendingProgress(((i + 1) / totalToSend) * 100);
     }
 
@@ -182,7 +179,11 @@ export const Outreach: React.FC = () => {
     alert(`Campaign complete!`);
   };
 
-  const settings = getSettings();
+  // Safe check before access settings
+  const [settings, setSettings] = useState<any>({});
+  useEffect(() => {
+    getSettings().then(setSettings);
+  }, []);
   
   // Replacements for preview
   const previewBody = body
@@ -268,6 +269,7 @@ export const Outreach: React.FC = () => {
       {/* Right Composer */}
       {leads.length > 0 && currentLead ? (
         <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200">
+             {/* ... (Rest of the Composer UI similar to previous version) ... */}
              
              {/* Channel Tabs */}
              <div className="flex border-b border-slate-200">
@@ -286,7 +288,6 @@ export const Outreach: React.FC = () => {
              </div>
 
              <div className="p-6 border-b border-slate-100 space-y-4">
-                
                 {/* Header Info */}
                 <div className="flex items-center justify-between">
                     <div>

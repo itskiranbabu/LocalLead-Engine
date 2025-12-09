@@ -15,9 +15,13 @@ export interface BusinessLead {
   addedAt: string;
   mapUrl?: string; // Google Maps grounding URL
   campaignId?: string; // Associated campaign
-  potentialValue?: number;
+  
+  // Advanced CRM Fields
+  potentialValue?: number; // Maps to pipeline_value_inr
   score?: number;
   tags?: string[];
+  enrichmentData?: any;
+  deepResearch?: any;
 }
 
 export interface EmailTemplate {
@@ -26,6 +30,7 @@ export interface EmailTemplate {
   subject: string;
   body: string;
   type: 'initial' | 'followup';
+  channel?: 'email' | 'whatsapp';
 }
 
 export interface Campaign {
@@ -51,4 +56,6 @@ export interface AppSettings {
   companyName: string;
   dailyEmailLimit: number;
   offerings: string[]; // List of services the user sells
+  googleSheetsConnected?: boolean;
+  googleSheetId?: string;
 }

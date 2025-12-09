@@ -13,9 +13,9 @@ export const Campaigns: React.FC = () => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setCampaigns(getCampaigns());
-    setLeads(getLeads());
+  const loadData = async () => {
+    setCampaigns(await getCampaigns());
+    setLeads(await getLeads());
   };
 
   const handleCreate = () => {
@@ -31,26 +31,26 @@ export const Campaigns: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.name) {
-      saveCampaign(formData as Campaign);
+      await saveCampaign(formData as Campaign);
       setIsModalOpen(false);
-      loadData();
+      await loadData();
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Delete this campaign?")) {
-      deleteCampaign(id);
-      loadData();
+      await deleteCampaign(id);
+      await loadData();
     }
   };
 
-  const toggleStatus = (campaign: Campaign) => {
+  const toggleStatus = async (campaign: Campaign) => {
     const newStatus = campaign.status === 'active' ? 'paused' : 'active';
-    saveCampaign({ ...campaign, status: newStatus });
-    loadData();
+    await saveCampaign({ ...campaign, status: newStatus });
+    await loadData();
   };
 
   const getStats = (campaignId: string) => {

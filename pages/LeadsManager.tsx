@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getLeads, updateLead, getCampaigns, saveLeads } from '../services/storageService';
+import { getLeads, updateLead, getCampaigns, deleteLead } from '../services/storageService';
 import { enrichLeadData, generateContentCalendar } from '../services/geminiService';
 import { BusinessLead, Campaign } from '../types';
 import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X } from 'lucide-react';
@@ -20,9 +20,9 @@ export const LeadsManager: React.FC = () => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setLeads(getLeads());
-    setCampaigns(getCampaigns());
+  const loadData = async () => {
+    setLeads(await getLeads());
+    setCampaigns(await getCampaigns());
   };
 
   const handleEnrich = async (lead: BusinessLead) => {
@@ -30,8 +30,8 @@ export const LeadsManager: React.FC = () => {
     try {
       const enrichmentData = await enrichLeadData(lead);
       const updated = { ...lead, ...enrichmentData };
-      updateLead(updated);
-      loadData(); // Refresh UI
+      await updateLead(updated);
+      await loadData(); // Refresh UI
     } catch (err) {
       alert("Failed to enrich using AI. Check API Configuration.");
     } finally {
@@ -53,23 +53,22 @@ export const LeadsManager: React.FC = () => {
     }
   };
 
-  const handleAssignCampaign = (lead: BusinessLead, campaignId: string) => {
+  const handleAssignCampaign = async (lead: BusinessLead, campaignId: string) => {
     const updated = { ...lead, campaignId: campaignId === 'none' ? undefined : campaignId };
-    updateLead(updated);
-    loadData();
+    await updateLead(updated);
+    await loadData();
   };
 
-  const handleStatusChange = (lead: BusinessLead, newStatus: any) => {
+  const handleStatusChange = async (lead: BusinessLead, newStatus: any) => {
     const updated = { ...lead, status: newStatus };
-    updateLead(updated);
-    loadData();
+    await updateLead(updated);
+    await loadData();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if(confirm('Are you sure you want to delete this lead?')) {
-        const remaining = leads.filter(l => l.id !== id);
-        saveLeads(remaining);
-        loadData();
+        await deleteLead(id);
+        await loadData();
     }
   };
 
