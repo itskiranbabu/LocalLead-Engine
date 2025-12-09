@@ -188,6 +188,41 @@ export const quickPolishEmail = async (
   return response.text || draft;
 };
 
+// --- CONTENT SPARK BRAND DATA ---
+const COMPANY_CONTEXT = `
+You are the Head of Sales for "Content Spark". 
+Content Spark is a premium digital growth agency.
+
+OUR SERVICE PACKAGES & PRICING:
+1. SPARK STARTER ($499/mo)
+   - 12 High-Quality Social Media Posts (IG/FB/LinkedIn)
+   - Basic SEO Setup (Google My Business Optimization)
+   - Monthly Performance Report
+   - Email Support
+
+2. BUSINESS IGNITE ($999/mo) - *Most Popular*
+   - 20 Social Posts + 4 Reels/Shorts
+   - Advanced SEO (Keyword Research + 2 Blog Articles)
+   - Paid Ads Management (Up to $1k ad spend included)
+   - Bi-weekly Strategy Calls
+
+3. BRAND DOMINATION ($1,999/mo)
+   - Daily Content (Post + Story Management)
+   - Full-Stack SEO (Backlinking + Technical Audit)
+   - Complete Funnel Build & Optimization
+   - Dedicated Account Manager & 24/7 Priority Support
+   - Unlimited Ad Spend Management
+
+CORE VALUE PROPOSITION:
+- We don't just post content; we build revenue engines.
+- Data-driven approach.
+- 100% Transparency.
+
+YOUR TONE:
+- Professional, confident, consultative. Not pushy.
+- Focus on ROI and solving the lead's specific pain points (e.g., getting more foot traffic, ranking higher on Maps).
+`;
+
 export const generateMarketingPitch = async (
   lead: BusinessLead,
   offering: string,
@@ -198,17 +233,42 @@ export const generateMarketingPitch = async (
   let prompt = "";
   
   if (channel === 'whatsapp') {
-    prompt = `Write a short, friendly, and professional WhatsApp message to ${lead.name} (a ${lead.category} in ${lead.city}).
-    My company offers ${offering}.
-    Goal: Start a conversation.
-    Constraints: Under 60 words. No subject line. Use 1 or 2 relevant emojis. Don't be spammy.
-    Output only the message body.`;
+    prompt = `
+    ${COMPANY_CONTEXT}
+    
+    TASK: Write a professional WhatsApp message to a potential client.
+    LEAD: ${lead.name} (${lead.category} in ${lead.city}).
+    OFFERING FOCUSED ON: ${offering}.
+
+    GUIDELINES:
+    - Start with a polite, professional greeting.
+    - Mention "Content Spark" clearly.
+    - Mention the "Spark Starter" plan starting at $499/mo as a low-friction entry point.
+    - Use line breaks for readability.
+    - Use 2-3 professional emojis (e.g., 🚀, 📈, ✨).
+    - End with a low-pressure question (e.g., "Would you be open to seeing a quick plan?").
+    - Keep it under 100 words.
+    
+    Output strictly the message body text.`;
   } else {
-    prompt = `Write a professional cold email to ${lead.name} (a ${lead.category} in ${lead.city}).
-    My company offers ${offering}.
-    Goal: Book a meeting.
-    Constraints: Concise, persuasive, focus on value for the ${lead.category} niche.
-    Output a JSON object with "subject" and "body" fields.`;
+    prompt = `
+    ${COMPANY_CONTEXT}
+
+    TASK: Write a high-converting cold email.
+    LEAD: ${lead.name} (${lead.category} in ${lead.city}).
+    OFFERING FOCUSED ON: ${offering}.
+    GOAL: Book a 15-min discovery call.
+
+    STRUCTURE:
+    1. SUBJECT LINE: Catchy, relevant to ${lead.city} or ${lead.category}.
+    2. OPENER: Personalized observation about ${lead.name}.
+    3. THE PROBLEM: A common pain point for ${lead.category} businesses (e.g., low visibility, relying on word of mouth).
+    4. THE SOLUTION: Introduce Content Spark and how we fix this.
+    5. THE OFFER: Briefly mention our tiered pricing to show transparency (Starter at $499, Scaling at $999). Mention "Dedicated Account Manager" support for higher tiers.
+    6. CTA: Specific call to action.
+
+    Output a JSON object with "subject" and "body" fields.
+    `;
   }
 
   const response = await ai.models.generateContent({

@@ -74,9 +74,9 @@ export const getTemplates = (): EmailTemplate[] => {
   return [
     {
       id: 'default-1',
-      name: 'Cold Outreach - General',
-      subject: 'Partnership opportunity with {{your_company}}',
-      body: "Hi {{contact_name}},\n\nI noticed {{business_name}} is doing great work in {{city}}. We help businesses like yours scale.\n\nLet's chat,\n{{your_name}}",
+      name: 'Content Spark - Introduction',
+      subject: 'Igniting growth for {{business_name}}',
+      body: "Hi {{contact_name}},\n\nI've been following {{business_name}}'s progress in {{city}} and see massive potential to dominate the local market.\n\nAt Content Spark, we don't just post content; we build revenue engines. I've prepared a few ideas specifically for the {{category}} niche.\n\nAre you open to a 5-minute chat this week?\n\nBest,\n{{your_name}}\nContent Spark",
       type: 'initial'
     }
   ];
@@ -108,9 +108,14 @@ export const getSettings = (): AppSettings => {
   const data = localStorage.getItem(KEYS.SETTINGS);
   return data ? JSON.parse(data) : {
     userName: '',
-    companyName: '',
+    companyName: 'Content Spark',
     dailyEmailLimit: 50,
-    offerings: ['Digital Marketing', 'Web Design', 'SEO Services']
+    offerings: [
+      'Full-Stack Digital Marketing',
+      'SEO & Local Domination',
+      'Social Media Growth',
+      'High-Converting Web Design'
+    ]
   };
 };
 

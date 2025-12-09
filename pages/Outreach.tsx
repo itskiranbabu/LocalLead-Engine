@@ -72,12 +72,12 @@ export const Outreach: React.FC = () => {
   useEffect(() => {
       if (activeChannel === 'whatsapp') {
           setSubject('');
-          if(!body.includes('WhatsApp')) setBody("Hi [Name], I saw your business and...");
+          if(!body.includes('Content Spark')) setBody(`Hi ${currentLead?.name || 'there'}, this is [Name] from Content Spark. We help businesses in ${currentLead?.city || 'your area'} grow...`);
       } else {
           // Revert to template default if empty
           if(templates.length > 0) applyTemplate(templates[0]);
       }
-  }, [activeChannel]);
+  }, [activeChannel, currentLead]);
 
   const applyTemplate = (template: EmailTemplate) => {
     setSubject(template.subject);
@@ -190,10 +190,10 @@ export const Outreach: React.FC = () => {
     .replace('{{business_name}}', currentLead?.name || 'Business')
     .replace('{{city}}', currentLead?.city || 'your city')
     .replace('{{your_name}}', settings.userName || 'Me')
-    .replace('{{your_company}}', settings.companyName || 'My Company');
+    .replace('{{your_company}}', settings.companyName || 'Content Spark');
 
   const previewSubject = subject
-    .replace('{{your_company}}', settings.companyName || 'My Company');
+    .replace('{{your_company}}', settings.companyName || 'Content Spark');
 
   return (
     <div className="p-8 h-full flex flex-col md:flex-row gap-8">
