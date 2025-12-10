@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getLeads, getSettings, updateLead, getTemplates, getCampaigns } from '../services/storageService';
 import { quickPolishEmail, generateMarketingPitch } from '../services/geminiService';
+import { sendEmailCampaign } from '../services/backendService';
 import { BusinessLead, EmailTemplate, Campaign } from '../types';
 import { Send, Wand2, RefreshCw, ChevronDown, Filter, Mail, Play, Loader2, CheckCircle, MessageCircle, ExternalLink, Sparkles } from 'lucide-react';
 
@@ -11,7 +12,6 @@ export const Outreach: React.FC = () => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [offerings, setOfferings] = useState<string[]>([]);
-  const [settings, setSettings] = useState<any>({});
   
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -28,11 +28,6 @@ export const Outreach: React.FC = () => {
   const [isAutoSending, setIsAutoSending] = useState(false);
   const [sendingProgress, setSendingProgress] = useState(0);
   const [sentCount, setSentCount] = useState(0);
-
-  // Load settings first
-  useEffect(() => {
-    getSettings().then(setSettings);
-  }, []);
 
   useEffect(() => {
     loadData();
@@ -132,37 +127,58 @@ export const Outreach: React.FC = () => {
     if (activeChannel === 'whatsapp') {
         // Sanitize phone
         const raw = currentLead.phone || '';
-        const phone = raw.replace(/\D/g, ''); // Remove all non-numeric
+        let phone = raw.replace(/\D/g, ''); // Remove all non-numeric
+
+        // Logic for Indian Numbers
+        if (phone.length === 10) {
+          phone = '91' + phone;
+        } else if (phone.length > 10 && phone.startsWith('0')) {
+          phone = '91' + phone.substring(1);
+        }
+
         if (phone.length < 10) {
-            alert("Invalid phone number format for WhatsApp.");
+            alert("Invalid phone number format for WhatsApp. Need at least 10 digits.");
             return;
         }
         
-        // Resolve template variables
-        const resolvedMessage = body
-          .replace(/\{\{contact_name\}\}/g, currentLead?.name || 'there')
-          .replace(/\{\{business_name\}\}/g, currentLead?.name || 'Business')
-          .replace(/\{\{city\}\}/g, currentLead?.city || 'your city')
-          .replace(/\{\{your_name\}\}/g, settings.userName || 'Kiran')
-          .replace(/\{\{your_company\}\}/g, settings.companyName || 'Content Spark');
-      
-        const text = encodeURIComponent(resolvedMessage);
-        const url = `https://wa.me/${phone}?text=${text}`;
+        // Use api.whatsapp.com for better cross-device support (desktop/mobile)
+        const text = encodeURIComponent(body);
+        const url = `https://api.whatsapp.com/send?phone=${phone}&text=${text}`;
         
+        // Open in new tab
         window.open(url, '_blank');
+        
         await updateLead({ ...currentLead, status: 'contacted' });
         setSentCount(prev => prev + 1);
 
     } else {
-        // Email simulation
-        await updateLead({ ...currentLead, status: 'contacted' });
-        alert(`Email simulated sent to ${currentLead.email}!`);
-        setSentCount(prev => prev + 1);
+        // Real Email Sending
+        try {
+          // If body is empty, don't send
+          if(!body.trim()) {
+            alert("Please write a message body.");
+            return;
+          }
+
+          // Use the Backend Service
+          await sendEmailCampaign(
+            [currentLead.id],
+            selectedTemplateId || undefined, 
+            selectedCampaignId === 'all' ? undefined : selectedCampaignId,
+            { customSubject: subject, customBody: body }
+          );
+
+          await updateLead({ ...currentLead, status: 'contacted' });
+          alert(`Email sent to ${currentLead.email}!`);
+          setSentCount(prev => prev + 1);
+        } catch (error: any) {
+          console.error("Email send failed:", error);
+          alert("Failed to send email. Check console/backend logs.");
+        }
     }
   };
 
   const startAutoSend = async () => {
-      // Only for email mode for now
     if (activeChannel === 'whatsapp') {
         alert("Bulk sending is not available for WhatsApp (requires manual approval).");
         return;
@@ -172,36 +188,61 @@ export const Outreach: React.FC = () => {
     setSendingProgress(0);
 
     const totalToSend = leads.length;
+    const batchSize = 5; // Send in small batches
     
-    // Simulate loop
-    for (let i = 0; i < totalToSend; i++) {
-        if (!isAutoSending && i > 0) break; 
-        
-        const lead = leads[i];
-        if(!lead.email) continue;
+    try {
+      for (let i = 0; i < totalToSend; i += batchSize) {
+          if (!isAutoSending && i > 0) break; 
+          
+          const batch = leads.slice(i, i + batchSize);
+          const validBatch = batch.filter(l => !!l.email);
+          const ids = validBatch.map(l => l.id);
 
-        // Mock API latency
-        await new Promise(r => setTimeout(r, 1500));
-        
-        await updateLead({ ...lead, status: 'contacted' });
-        setSendingProgress(((i + 1) / totalToSend) * 100);
+          if (ids.length > 0) {
+            // Call Backend for this batch
+            await sendEmailCampaign(
+              ids, 
+              selectedTemplateId || undefined,
+              selectedCampaignId === 'all' ? undefined : selectedCampaignId,
+              { customSubject: subject, customBody: body } // Note: Auto-send reuses the CURRENT editor content for all. In a real app, you'd use the Template ID content.
+            );
+            
+            // Update local status for UI
+            for(const lead of validBatch) {
+              await updateLead({ ...lead, status: 'contacted' });
+            }
+          }
+
+          setSendingProgress(Math.min(((i + batchSize) / totalToSend) * 100, 100));
+          // Small delay between batches
+          await new Promise(r => setTimeout(r, 1000));
+      }
+      alert(`Campaign complete!`);
+    } catch (err) {
+      console.error(err);
+      alert("Campaign paused due to error.");
+    } finally {
+      setIsAutoSending(false);
+      setSentCount(prev => prev + totalToSend);
     }
-
-    setIsAutoSending(false);
-    setSentCount(prev => prev + totalToSend);
-    alert(`Campaign complete!`);
   };
+
+  // Safe check before access settings
+  const [settings, setSettings] = useState<any>({});
+  useEffect(() => {
+    getSettings().then(setSettings);
+  }, []);
   
   // Replacements for preview
   const previewBody = body
-    .replace(/\{\{contact_name\}\}/g, currentLead?.name || 'there')
-    .replace(/\{\{business_name\}\}/g, currentLead?.name || 'Business')
-    .replace(/\{\{city\}\}/g, currentLead?.city || 'your city')
-    .replace(/\{\{your_name\}\}/g, settings.userName || 'Me')
-    .replace(/\{\{your_company\}\}/g, settings.companyName || 'Content Spark');
+    .replace('{{contact_name}}', currentLead?.name || 'there')
+    .replace('{{business_name}}', currentLead?.name || 'Business')
+    .replace('{{city}}', currentLead?.city || 'your city')
+    .replace('{{your_name}}', settings.userName || 'Me')
+    .replace('{{your_company}}', settings.companyName || 'Content Spark');
 
   const previewSubject = subject
-    .replace(/\{\{your_company\}\}/g, settings.companyName || 'Content Spark');
+    .replace('{{your_company}}', settings.companyName || 'Content Spark');
 
   return (
     <div className="p-8 h-full flex flex-col md:flex-row gap-8">
@@ -276,9 +317,7 @@ export const Outreach: React.FC = () => {
       {/* Right Composer */}
       {leads.length > 0 && currentLead ? (
         <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200">
-             {/* ... (Rest of the Composer UI similar to previous version) ... */}
-             
-             {/* Channel Tabs */}
+             {/* Header */}
              <div className="flex border-b border-slate-200">
                  <button 
                     onClick={() => setActiveChannel('email')}
@@ -389,7 +428,7 @@ export const Outreach: React.FC = () => {
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                     <button 
                         onClick={handleSendSingle}
-                        disabled={isAutoSending || (activeChannel === 'whatsapp' && !currentLead.phone) || (activeChannel === 'email' && !currentLead.email)}
+                        disabled={isAutoSending || (activeChannel === 'whatsapp' && !currentLead.phone)}
                         className={`${activeChannel === 'whatsapp' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2 shadow-lg transition-all hover:translate-y-[-1px] disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                         {activeChannel === 'whatsapp' ? <ExternalLink size={18} /> : <Send size={18} />}

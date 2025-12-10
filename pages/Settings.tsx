@@ -75,7 +75,7 @@ export const Settings: React.FC = () => {
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-slate-800">Application Settings</h2>
         <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500">Logged in as <span className="font-bold text-slate-700">{user?.email}</span></span>
+            <span className="text-sm text-slate-500">Logged in as <span className="font-bold text-slate-700">{user?.name}</span></span>
             <button onClick={logout} className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors">
                 <LogOut size={18} />
             </button>

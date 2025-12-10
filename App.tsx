@@ -6,7 +6,6 @@ import { LeadSearch } from './pages/LeadSearch';
 import { LeadsManager } from './pages/LeadsManager';
 import { Outreach } from './pages/Outreach';
 import { Strategy } from './pages/Strategy';
-import UsersPage from './pages/UsersPage';
 import { Settings } from './pages/Settings';
 import { Templates } from './pages/Templates';
 import { Campaigns } from './pages/Campaigns';
@@ -35,9 +34,8 @@ function AuthenticatedApp() {
       case 'templates': return <Templates />;
       case 'outreach': return <Outreach />;
       case 'strategy': return <Strategy />;
-              case 'users': return <UsersPage />;
-case 'settings': return <Settings />;
-              default: return <Dashboard />;
+      case 'settings': return <Settings />;
+      default: return <Dashboard />;
     }
   };
 
