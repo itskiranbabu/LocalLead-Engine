@@ -6,7 +6,7 @@ import { LeadSearch } from './pages/LeadSearch';
 import { LeadsManager } from './pages/LeadsManager';
 import { Outreach } from './pages/Outreach';
 import { Strategy } from './pages/Strategy';
-import { UsersPage } from './pages/UsersPage';
+import UsersPage from './pages/UsersPage';
 import { Settings } from './pages/Settings';
 import { Templates } from './pages/Templates';
 import { Campaigns } from './pages/Campaigns';
