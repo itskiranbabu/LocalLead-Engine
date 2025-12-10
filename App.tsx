@@ -36,9 +36,8 @@ function AuthenticatedApp() {
       case 'outreach': return <Outreach />;
       case 'strategy': return <Strategy />;
               case 'users': return <UsersPage />;
-      40
-        : return <Settings />;
-      default: return <Dashboard />;
+case 'settings': return <Settings />;
+              default: return <Dashboard />;
     }
   };
 
