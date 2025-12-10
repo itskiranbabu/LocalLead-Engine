@@ -17,7 +17,7 @@ const navItems = [
   { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'users', label: 'Users', icon: Users },
 ];
-    xport const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
+    export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
   return (
     <div className="w-64 bg-slate-900 text-slate-100 h-screen flex flex-col fixed left-0 top-0 border-r border-slate-800">
       <div className="p-6">
