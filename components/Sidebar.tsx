@@ -16,6 +16,7 @@ const navItems = [
   { id: 'strategy', label: 'AI Strategist', icon: BrainCircuit },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
+    { id: 'users', label: 'Users', icon: Users },
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => {
   return (
