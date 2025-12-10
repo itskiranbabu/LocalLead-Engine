@@ -21,7 +21,12 @@ export interface BusinessLead {
   score?: number;
   tags?: string[];
   enrichmentData?: any;
-  deepResearch?: any;
+  deepResearch?: {
+    lastRun: string;
+    iceBreakers: string[];
+    news: string[];
+    summary: string;
+  };
 }
 
 export interface EmailTemplate {
@@ -58,4 +63,12 @@ export interface AppSettings {
   offerings: string[]; // List of services the user sells
   googleSheetsConnected?: boolean;
   googleSheetId?: string;
+}
+
+export interface SearchHistoryItem {
+  id: string;
+  city: string;
+  niche: string;
+  date: string;
+  resultCount: number;
 }

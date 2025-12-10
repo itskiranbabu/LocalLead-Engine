@@ -176,8 +176,40 @@ export const enrichLeadData = async (
   return {
     email: data.email || lead.email,
     phone: lead.phone || data.phone,
-    notes: (lead.notes || "") + (notesWithSource ? `\n[Enrichment]: ${notesWithSource}` : "")
+    notes: (lead.notes || "") + (notesWithSource ? `\n[Enrichment]: ${notesWithSource}` : ""),
+    enrichmentData: {
+        contactName: data.contactName
+    }
   };
+};
+
+export const performDeepResearch = async (lead: BusinessLead): Promise<any> => {
+    const ai = getAiClient();
+    const prompt = `Research recent news, social media presence, or events related to "${lead.name}" in "${lead.city}".
+    Identify 2-3 specific talking points I can use as icebreakers in a sales email.
+    Also summarize their likely business goals.
+    
+    Output strictly JSON:
+    {
+        "iceBreakers": ["point 1", "point 2"],
+        "news": ["headline 1", "headline 2"],
+        "summary": "brief summary string"
+    }`;
+
+    const response = await callWithRetry(() => ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+            tools: [{ googleSearch: {} }],
+            responseMimeType: "application/json"
+        }
+    }));
+
+    try {
+        return JSON.parse(cleanJson(response.text || "{}"));
+    } catch (e) {
+        return { iceBreakers: [], news: [], summary: "Could not parse research data." };
+    }
 };
 
 export const generateCampaignStrategy = async (

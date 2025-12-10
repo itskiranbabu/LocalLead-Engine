@@ -1,17 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getLeads, getSettings, updateLead, getTemplates, getCampaigns } from '../services/storageService';
 import { quickPolishEmail, generateMarketingPitch } from '../services/geminiService';
 import { sendEmailCampaign } from '../services/backendService';
 import { BusinessLead, EmailTemplate, Campaign } from '../types';
-import { Send, Wand2, RefreshCw, ChevronDown, Filter, Mail, Play, Loader2, CheckCircle, MessageCircle, ExternalLink, Sparkles } from 'lucide-react';
+import { Send, Wand2, RefreshCw, ChevronDown, Filter, Mail, Play, Loader2, CheckCircle, MessageCircle, ExternalLink, Sparkles, X, Save } from 'lucide-react';
 
 type Channel = 'email' | 'whatsapp';
+
+// Helper to replace variables securely
+const replaceVariables = (text: string, lead: BusinessLead, settings: any) => {
+    const contactName = lead.enrichmentData?.contactName || lead.name;
+    return text
+    .replace(/{{contact_name}}/g, contactName)
+    .replace(/{{business_name}}/g, lead.name || 'Business')
+    .replace(/{{city}}/g, lead.city || 'your city')
+    .replace(/{{category}}/g, lead.category || 'your niche')
+    .replace(/{{your_name}}/g, settings.userName || 'Me')
+    .replace(/{{your_company}}/g, settings.companyName || 'Content Spark');
+};
 
 export const Outreach: React.FC = () => {
   const [leads, setLeads] = useState<BusinessLead[]>([]);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [offerings, setOfferings] = useState<string[]>([]);
+  const [settings, setSettings] = useState<any>({});
   
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -24,6 +37,9 @@ export const Outreach: React.FC = () => {
   const [polishing, setPolishing] = useState(false);
   const [generating, setGenerating] = useState(false);
   
+  // Per-Lead Drafts
+  const [drafts, setDrafts] = useState<Record<string, {subject: string, body: string, channel: Channel}>>({});
+
   // Bulk Sending State
   const [isAutoSending, setIsAutoSending] = useState(false);
   const [sendingProgress, setSendingProgress] = useState(0);
@@ -37,13 +53,14 @@ export const Outreach: React.FC = () => {
     const allLeads = await getLeads();
     const allTemplates = await getTemplates();
     const allCampaigns = await getCampaigns();
-    const settings = await getSettings();
+    const loadedSettings = await getSettings();
+    setSettings(loadedSettings);
     
     setTemplates(allTemplates);
     setCampaigns(allCampaigns);
-    setOfferings(settings.offerings || []);
-    if (settings.offerings && settings.offerings.length > 0) {
-        setSelectedOffering(settings.offerings[0]);
+    setOfferings(loadedSettings.offerings || []);
+    if (loadedSettings.offerings && loadedSettings.offerings.length > 0) {
+        setSelectedOffering(loadedSettings.offerings[0]);
     }
 
     const actionable = allLeads.filter(l => {
@@ -59,34 +76,62 @@ export const Outreach: React.FC = () => {
     }
     
     if (!selectedTemplateId && allTemplates.length > 0 && activeChannel === 'email') {
-        applyTemplate(allTemplates[0]);
         setSelectedTemplateId(allTemplates[0].id);
     }
   };
 
   const currentLead = leads.find(l => l.id === selectedLeadId);
 
-  // Switch templates or clear body when channel changes
+  // Load draft or template when switching leads or channels
   useEffect(() => {
-      if (activeChannel === 'whatsapp') {
-          setSubject('');
-          if(!body.includes('Content Spark')) setBody(`Hi ${currentLead?.name || 'there'}, this is [Name] from Content Spark. We help businesses in ${currentLead?.city || 'your area'} grow...`);
+      if (!currentLead) return;
+      
+      const key = `${currentLead.id}-${activeChannel}`;
+      if (drafts[key]) {
+          // Restore draft
+          setSubject(drafts[key].subject);
+          setBody(drafts[key].body);
       } else {
-          // Revert to template default if empty
-          if(templates.length > 0) applyTemplate(templates[0]);
+          // Apply Default
+          if (activeChannel === 'whatsapp') {
+            setSubject('');
+            setBody("Hi {{contact_name}},\n\nThis is {{your_name}} from {{your_company}}. We help businesses in {{city}} grow using AI.\n\nAre you open to a quick chat?");
+          } else {
+              // Email
+              const tmpl = templates.find(t => t.id === selectedTemplateId) || templates[0];
+              if (tmpl) {
+                  setSubject(tmpl.subject);
+                  setBody(tmpl.body);
+              } else {
+                  setSubject("Partnership Opportunity");
+                  setBody("Hi {{contact_name}}...");
+              }
+          }
       }
-  }, [activeChannel, currentLead]);
+  }, [selectedLeadId, activeChannel, currentLead, templates, selectedTemplateId]);
 
-  const applyTemplate = (template: EmailTemplate) => {
-    setSubject(template.subject);
-    setBody(template.body);
-  };
+  // Save Draft Debounced
+  useEffect(() => {
+      if (!currentLead) return;
+      const timer = setTimeout(() => {
+        const key = `${currentLead.id}-${activeChannel}`;
+        setDrafts(prev => ({
+            ...prev,
+            [key]: { subject, body, channel: activeChannel }
+        }));
+      }, 500);
+      return () => clearTimeout(timer);
+  }, [subject, body, activeChannel, currentLead]);
 
   const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const tId = e.target.value;
     setSelectedTemplateId(tId);
+    // Explicitly overwrite current body when template is manually changed
     const t = templates.find(temp => temp.id === tId);
-    if (t) applyTemplate(t);
+    if (t) {
+        setSubject(t.subject);
+        setBody(t.body);
+    }
   };
 
   const handlePolish = async () => {
@@ -121,9 +166,26 @@ export const Outreach: React.FC = () => {
       }
   };
 
+  const handleRemoveFromQueue = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if(currentLead) {
+          // Just unassign campaign or set status to ignored to hide from here?
+          // Let's set status to ignored for now, or just hide locally?
+          // To truly "manage", let's set status to 'ignored' so it drops off this list
+          await updateLead({ ...currentLead, status: 'ignored' });
+          setLeads(prev => prev.filter(l => l.id !== currentLead.id));
+          if(leads.length > 1) setSelectedLeadId(leads[0].id === currentLead.id ? leads[1].id : leads[0].id);
+          else setSelectedLeadId('');
+      }
+  }
+
   const handleSendSingle = async () => {
     if (!currentLead) return;
     
+    // Process variables NOW
+    const processedBody = replaceVariables(body, currentLead, settings);
+    const processedSubject = replaceVariables(subject, currentLead, settings);
+
     if (activeChannel === 'whatsapp') {
         // Sanitize phone
         const raw = currentLead.phone || '';
@@ -141,11 +203,10 @@ export const Outreach: React.FC = () => {
             return;
         }
         
-        // Use api.whatsapp.com for better cross-device support (desktop/mobile)
-        const text = encodeURIComponent(body);
+        // Use api.whatsapp.com
+        const text = encodeURIComponent(processedBody);
         const url = `https://api.whatsapp.com/send?phone=${phone}&text=${text}`;
         
-        // Open in new tab
         window.open(url, '_blank');
         
         await updateLead({ ...currentLead, status: 'contacted' });
@@ -154,18 +215,16 @@ export const Outreach: React.FC = () => {
     } else {
         // Real Email Sending
         try {
-          // If body is empty, don't send
-          if(!body.trim()) {
+          if(!processedBody.trim()) {
             alert("Please write a message body.");
             return;
           }
 
-          // Use the Backend Service
           await sendEmailCampaign(
             [currentLead.id],
             selectedTemplateId || undefined, 
             selectedCampaignId === 'all' ? undefined : selectedCampaignId,
-            { customSubject: subject, customBody: body }
+            { customSubject: processedSubject, customBody: processedBody }
           );
 
           await updateLead({ ...currentLead, status: 'contacted' });
@@ -188,7 +247,7 @@ export const Outreach: React.FC = () => {
     setSendingProgress(0);
 
     const totalToSend = leads.length;
-    const batchSize = 5; // Send in small batches
+    const batchSize = 5; 
     
     try {
       for (let i = 0; i < totalToSend; i += batchSize) {
@@ -199,22 +258,25 @@ export const Outreach: React.FC = () => {
           const ids = validBatch.map(l => l.id);
 
           if (ids.length > 0) {
-            // Call Backend for this batch
+            // Note: Auto-send currently uses the RAW template (with placeholders) because
+            // generating custom body for everyone client-side is hard.
+            // The backend handles the replacement for bulk sends using the templateId.
+            // If the user modified the text in the editor, that only applies to the SINGLE currently selected lead.
+            // For bulk, we fall back to the selected Template ID.
+            
             await sendEmailCampaign(
               ids, 
               selectedTemplateId || undefined,
               selectedCampaignId === 'all' ? undefined : selectedCampaignId,
-              { customSubject: subject, customBody: body } // Note: Auto-send reuses the CURRENT editor content for all. In a real app, you'd use the Template ID content.
+              undefined // No overrides for bulk, use template
             );
             
-            // Update local status for UI
             for(const lead of validBatch) {
               await updateLead({ ...lead, status: 'contacted' });
             }
           }
 
           setSendingProgress(Math.min(((i + batchSize) / totalToSend) * 100, 100));
-          // Small delay between batches
           await new Promise(r => setTimeout(r, 1000));
       }
       alert(`Campaign complete!`);
@@ -227,22 +289,9 @@ export const Outreach: React.FC = () => {
     }
   };
 
-  // Safe check before access settings
-  const [settings, setSettings] = useState<any>({});
-  useEffect(() => {
-    getSettings().then(setSettings);
-  }, []);
-  
-  // Replacements for preview
-  const previewBody = body
-    .replace('{{contact_name}}', currentLead?.name || 'there')
-    .replace('{{business_name}}', currentLead?.name || 'Business')
-    .replace('{{city}}', currentLead?.city || 'your city')
-    .replace('{{your_name}}', settings.userName || 'Me')
-    .replace('{{your_company}}', settings.companyName || 'Content Spark');
-
-  const previewSubject = subject
-    .replace('{{your_company}}', settings.companyName || 'Content Spark');
+  // Preview Calculation
+  const previewBody = replaceVariables(body, currentLead || {} as any, settings);
+  const previewSubject = replaceVariables(subject, currentLead || {} as any, settings);
 
   return (
     <div className="p-8 h-full flex flex-col md:flex-row gap-8">
@@ -341,24 +390,37 @@ export const Outreach: React.FC = () => {
                         <span className="ml-2 text-slate-800 font-medium">
                             {activeChannel === 'email' ? (currentLead.email || 'No Email Found') : (currentLead.phone || 'No Phone Found')}
                         </span>
+                        {/* Draft Status Indicator */}
+                        {drafts[`${currentLead.id}-${activeChannel}`] && (
+                            <span className="ml-2 text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">Draft Saved</span>
+                        )}
                     </div>
                     
-                    {activeChannel === 'email' && (
-                        <div className="flex items-center gap-2">
-                             <span className="text-xs text-slate-400">Template:</span>
-                             <div className="relative">
-                                <select 
-                                    value={selectedTemplateId} 
-                                    onChange={handleTemplateChange}
-                                    className="appearance-none bg-slate-50 border border-slate-200 rounded-md py-1 pl-3 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                >
-                                    {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                    {templates.length === 0 && <option>No templates</option>}
-                                </select>
-                                <ChevronDown size={14} className="absolute right-2 top-2 text-slate-400 pointer-events-none" />
-                             </div>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-4">
+                        {activeChannel === 'email' && (
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-400">Template:</span>
+                                <div className="relative">
+                                    <select 
+                                        value={selectedTemplateId} 
+                                        onChange={handleTemplateChange}
+                                        className="appearance-none bg-slate-50 border border-slate-200 rounded-md py-1 pl-3 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    >
+                                        {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                        {templates.length === 0 && <option>No templates</option>}
+                                    </select>
+                                    <ChevronDown size={14} className="absolute right-2 top-2 text-slate-400 pointer-events-none" />
+                                </div>
+                            </div>
+                        )}
+                        <button 
+                            onClick={handleRemoveFromQueue}
+                            className="text-slate-400 hover:text-red-500 text-xs font-medium flex items-center gap-1"
+                            title="Remove from queue (mark as ignored)"
+                        >
+                            <X size={14} /> Remove
+                        </button>
+                    </div>
                 </div>
 
                 {/* Offering Selection & AI Generation */}

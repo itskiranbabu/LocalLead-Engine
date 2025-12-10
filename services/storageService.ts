@@ -1,4 +1,4 @@
-import { BusinessLead, EmailTemplate, AppSettings, Campaign } from '../types';
+import { BusinessLead, EmailTemplate, AppSettings, Campaign, SearchHistoryItem } from '../types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { leadRepository } from './repositories/leadRepository';
 import { campaignRepository } from './repositories/campaignRepository';
@@ -10,6 +10,8 @@ const KEYS = {
   TEMPLATES: 'lle_templates',
   SETTINGS: 'lle_settings',
   CAMPAIGNS: 'lle_campaigns',
+  SEARCH_HISTORY: 'lle_search_history',
+  LAST_SEARCH_RESULTS: 'lle_last_search_results',
 };
 
 // Helper to check auth and get ID
@@ -33,11 +35,8 @@ export const getLeads = async (): Promise<BusinessLead[]> => {
 export const addLeads = async (newLeads: BusinessLead[]) => {
   const userId = await getCurrentUserId();
   if (userId) {
-    // Check duplication in DB? Repository creates blindly, but UI handles duplication check usually.
-    // For now, let's just insert.
     await leadRepository.create(userId, newLeads);
   } else {
-    // Local Logic
     const currentData = localStorage.getItem(KEYS.LEADS);
     const current: BusinessLead[] = currentData ? JSON.parse(currentData) : [];
     const uniqueNew = newLeads.filter(
@@ -88,12 +87,6 @@ export const getCampaigns = async (): Promise<Campaign[]> => {
 export const saveCampaign = async (campaign: Campaign) => {
   const userId = await getCurrentUserId();
   if (userId) {
-    // Basic check if exists (naive, assumes ID is new if from UI create)
-    // Actually repository 'create' handles inserts. We need to distinguish update vs create.
-    // For simplicity, we'll try to update, if fail/not exist? 
-    // Better: check if we have it in list?
-    // Let's assume UI passes ID. We can try to upsert or check ID.
-    // For this prototype, if it's new (created just now), use create.
     const exists = (await campaignRepository.getAll(userId)).find(c => c.id === campaign.id);
     if (exists) {
         await campaignRepository.update(userId, campaign);
@@ -152,7 +145,6 @@ const getLocalDefaultTemplates = async (): Promise<EmailTemplate[]> => {
 export const saveTemplate = async (template: EmailTemplate) => {
   const userId = await getCurrentUserId();
   if (userId) {
-    // Naive Upsert Check
     const exists = (await templateRepository.getAll(userId)).find(t => t.id === template.id);
     if (exists) await templateRepository.update(userId, template);
     else await templateRepository.create(userId, template);
@@ -211,4 +203,33 @@ export const saveSettings = async (settings: AppSettings) => {
   } else {
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
   }
+};
+
+// --- Search History & Results Persistence ---
+export const getSearchHistory = (): SearchHistoryItem[] => {
+    const data = localStorage.getItem(KEYS.SEARCH_HISTORY);
+    return data ? JSON.parse(data) : [];
+};
+
+export const saveSearchHistory = (history: SearchHistoryItem[]) => {
+    localStorage.setItem(KEYS.SEARCH_HISTORY, JSON.stringify(history));
+};
+
+export const addToSearchHistory = (item: SearchHistoryItem) => {
+    const current = getSearchHistory();
+    // Prevent duplicates at the top
+    if (current.length > 0 && current[0].city === item.city && current[0].niche === item.niche) {
+        return;
+    }
+    const updated = [item, ...current].slice(0, 10); // Keep last 10
+    saveSearchHistory(updated);
+};
+
+export const getLastSearchResults = (): BusinessLead[] | null => {
+    const data = localStorage.getItem(KEYS.LAST_SEARCH_RESULTS);
+    return data ? JSON.parse(data) : null;
+};
+
+export const saveLastSearchResults = (results: Partial<BusinessLead>[]) => {
+    localStorage.setItem(KEYS.LAST_SEARCH_RESULTS, JSON.stringify(results));
 };

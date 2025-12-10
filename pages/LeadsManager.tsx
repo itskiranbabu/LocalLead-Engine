@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { getLeads, updateLead, getCampaigns, deleteLead } from '../services/storageService';
-import { enrichLeadData, generateContentCalendar } from '../services/geminiService';
+import { enrichLeadData, generateContentCalendar, performDeepResearch } from '../services/geminiService';
 import { BusinessLead, Campaign } from '../types';
-import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X } from 'lucide-react';
+import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X, Microscope, Globe } from 'lucide-react';
 
 export const LeadsManager: React.FC = () => {
   const [leads, setLeads] = useState<BusinessLead[]>([]);
@@ -15,6 +15,11 @@ export const LeadsManager: React.FC = () => {
   const [calendarLead, setCalendarLead] = useState<BusinessLead | null>(null);
   const [calendarContent, setCalendarContent] = useState<string>('');
   const [generatingCalendar, setGeneratingCalendar] = useState(false);
+
+  // Deep Research State
+  const [researchLead, setResearchLead] = useState<BusinessLead | null>(null);
+  const [researchResult, setResearchResult] = useState<any>(null);
+  const [researching, setResearching] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -38,6 +43,35 @@ export const LeadsManager: React.FC = () => {
       setEnriching(null);
     }
   };
+
+  const handleDeepResearch = async (lead: BusinessLead) => {
+      setResearchLead(lead);
+      setResearching(true);
+      setResearchResult(null);
+
+      // Check if already researched
+      if (lead.deepResearch) {
+          setResearchResult(lead.deepResearch);
+          setResearching(false);
+          return;
+      }
+
+      try {
+          const result = await performDeepResearch(lead);
+          setResearchResult(result);
+          // Save to lead
+          const updated = { 
+              ...lead, 
+              deepResearch: { ...result, lastRun: new Date().toISOString() } 
+          };
+          await updateLead(updated);
+          await loadData();
+      } catch (e) {
+          setResearchResult({ error: "Failed to perform research." });
+      } finally {
+          setResearching(false);
+      }
+  }
 
   const handleGenerateCalendar = async (lead: BusinessLead) => {
     setCalendarLead(lead);
@@ -252,6 +286,13 @@ export const LeadsManager: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
+                            <button
+                                onClick={() => handleDeepResearch(lead)}
+                                className="text-pink-600 hover:text-pink-800 font-medium text-xs flex items-center gap-1 bg-pink-50 p-1.5 rounded"
+                                title="Deep Research & Icebreakers"
+                            >
+                                <Microscope size={14} />
+                            </button>
                              <button 
                                 onClick={() => handleGenerateCalendar(lead)}
                                 className="text-purple-600 hover:text-purple-800 font-medium text-xs flex items-center gap-1 bg-purple-50 p-1.5 rounded"
@@ -315,6 +356,85 @@ export const LeadsManager: React.FC = () => {
                         className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold"
                     >
                         Close
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Deep Research Modal */}
+      {researchLead && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-in fade-in zoom-in duration-200">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-pink-50 rounded-t-xl">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-pink-100 p-2 rounded-full text-pink-600">
+                            <Microscope size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-slate-800">Deep Research Intelligence</h3>
+                            <p className="text-sm text-slate-600">Analysis for {researchLead.name}</p>
+                        </div>
+                    </div>
+                    <button onClick={() => setResearchLead(null)} className="text-slate-400 hover:text-slate-600">
+                        <X size={24} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto flex-1 bg-white">
+                    {researching ? (
+                        <div className="flex flex-col items-center justify-center py-12">
+                            <Loader2 className="animate-spin text-pink-600 mb-4" size={48} />
+                            <p className="text-slate-500 font-medium">Analyzing news and events for {researchLead.name}...</p>
+                        </div>
+                    ) : researchResult ? (
+                        <div className="space-y-6">
+                            {researchResult.error ? (
+                                <div className="text-red-500 p-4 bg-red-50 rounded-lg">{researchResult.error}</div>
+                            ) : (
+                                <>
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                        <h4 className="font-bold text-slate-700 mb-2 uppercase text-xs tracking-wide">Summary</h4>
+                                        <p className="text-slate-700 leading-relaxed">{researchResult.summary}</p>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <h4 className="font-bold text-pink-600 mb-3 flex items-center gap-2">
+                                                <Sparkles size={16} /> Ice Breakers
+                                            </h4>
+                                            <ul className="space-y-3">
+                                                {researchResult.iceBreakers?.map((point: string, i: number) => (
+                                                    <li key={i} className="text-sm text-slate-700 bg-pink-50/50 p-3 rounded-lg border border-pink-100">
+                                                        "{point}"
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-blue-600 mb-3 flex items-center gap-2">
+                                                <Globe size={16} /> Recent News/Activity
+                                            </h4>
+                                            <ul className="space-y-3">
+                                                {researchResult.news?.map((news: string, i: number) => (
+                                                    <li key={i} className="text-sm text-slate-600 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                                                        {news}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    ) : null}
+                </div>
+                <div className="p-4 border-t border-slate-100 bg-white rounded-b-xl flex justify-end">
+                    <button 
+                        onClick={() => setResearchLead(null)}
+                        className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold"
+                    >
+                        Done
                     </button>
                 </div>
             </div>
