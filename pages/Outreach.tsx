@@ -11,6 +11,7 @@ export const Outreach: React.FC = () => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [offerings, setOfferings] = useState<string[]>([]);
+  const [settings, setSettings] = useState<any>({});
   
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -27,6 +28,11 @@ export const Outreach: React.FC = () => {
   const [isAutoSending, setIsAutoSending] = useState(false);
   const [sendingProgress, setSendingProgress] = useState(0);
   const [sentCount, setSentCount] = useState(0);
+
+  // Load settings first
+  useEffect(() => {
+    getSettings().then(setSettings);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -132,17 +138,15 @@ export const Outreach: React.FC = () => {
             return;
         }
         
-        // Encode message
-// Resolve template variables
-    const resolvedMessage = body
-      .replace('{{contact_name}}', currentLead?.name || 'there')
-      .replace('{{business_name}}', currentLead?.name || 'Business')
-      .replace('{{city}}', currentLead?.city || 'your city')
-      .replace('{{your_name}}', settings.userName || 'Kiran')
-      .replace('{{your_company}}', settings.companyName || 'Content Spark');
-
+        // Resolve template variables
+        const resolvedMessage = body
+          .replace(/\{\{contact_name\}\}/g, currentLead?.name || 'there')
+          .replace(/\{\{business_name\}\}/g, currentLead?.name || 'Business')
+          .replace(/\{\{city\}\}/g, currentLead?.city || 'your city')
+          .replace(/\{\{your_name\}\}/g, settings.userName || 'Kiran')
+          .replace(/\{\{your_company\}\}/g, settings.companyName || 'Content Spark');
       
-      const text = encodeURIComponent(resolvedMessage);
+        const text = encodeURIComponent(resolvedMessage);
         const url = `https://wa.me/${phone}?text=${text}`;
         
         window.open(url, '_blank');
@@ -187,23 +191,17 @@ export const Outreach: React.FC = () => {
     setSentCount(prev => prev + totalToSend);
     alert(`Campaign complete!`);
   };
-
-  // Safe check before access settings
-  const [settings, setSettings] = useState<any>({});
-  useEffect(() => {
-    getSettings().then(setSettings);
-  }, []);
   
   // Replacements for preview
   const previewBody = body
-    .replace('{{contact_name}}', currentLead?.name || 'there')
-    .replace('{{business_name}}', currentLead?.name || 'Business')
-    .replace('{{city}}', currentLead?.city || 'your city')
-    .replace('{{your_name}}', settings.userName || 'Me')
-    .replace('{{your_company}}', settings.companyName || 'Content Spark');
+    .replace(/\{\{contact_name\}\}/g, currentLead?.name || 'there')
+    .replace(/\{\{business_name\}\}/g, currentLead?.name || 'Business')
+    .replace(/\{\{city\}\}/g, currentLead?.city || 'your city')
+    .replace(/\{\{your_name\}\}/g, settings.userName || 'Me')
+    .replace(/\{\{your_company\}\}/g, settings.companyName || 'Content Spark');
 
   const previewSubject = subject
-    .replace('{{your_company}}', settings.companyName || 'Content Spark');
+    .replace(/\{\{your_company\}\}/g, settings.companyName || 'Content Spark');
 
   return (
     <div className="p-8 h-full flex flex-col md:flex-row gap-8">
