@@ -133,7 +133,16 @@ export const Outreach: React.FC = () => {
         }
         
         // Encode message
-        const text = encodeURIComponent(body);
+// Resolve template variables
+    const resolvedMessage = body
+      .replace('{{contact_name}}', currentLead?.name || 'there')
+      .replace('{{business_name}}', currentLead?.name || 'Business')
+      .replace('{{city}}', currentLead?.city || 'your city')
+      .replace('{{your_name}}', settings.userName || 'Kiran')
+      .replace('{{your_company}}', settings.companyName || 'Content Spark');
+
+      
+      const text = encodeURIComponent(resolvedMessage);
         const url = `https://wa.me/${phone}?text=${text}`;
         
         window.open(url, '_blank');
