@@ -63,6 +63,9 @@ export interface AppSettings {
   offerings: string[]; // List of services the user sells
   googleSheetsConnected?: boolean;
   googleSheetId?: string;
+    enrichmentService?: 'hunter' | 'apollo' | 'clearbit' | null;
+  enrichmentApiKey?: string;
+  enrichmentEnabled?: boolean;
 }
 
 export interface SearchHistoryItem {
