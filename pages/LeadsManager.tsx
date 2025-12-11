@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { getLeads, updateLead, getCampaigns, deleteLead } from '../services/storageService';
 import { enrichLeadData, generateContentCalendar, performDeepResearch } from '../services/geminiService';
 import { BusinessLead, Campaign } from '../types';
-import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X, Microscope, Globe } from 'lucide-react';
+import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X, Microscope, Globe } from 'lucide-react', Zap } from 'lucide-react';
+import { emailEnrichmentService } from '../services/emailEnrichmentService';
 
 export const LeadsManager: React.FC = () => {
   const [leads, setLeads] = useState<BusinessLead[]>([]);
@@ -10,6 +11,7 @@ export const LeadsManager: React.FC = () => {
   const [enriching, setEnriching] = useState<string | null>(null); // ID of lead being enriched
   const [filterCampaign, setFilterCampaign] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+    const [enrichmentSuccess, setEnrichmentSuccess] = useState<{ [key: string]: boolean }>({});
   
   // Content Calendar State
   const [calendarLead, setCalendarLead] = useState<BusinessLead | null>(null);
@@ -147,6 +149,60 @@ export const LeadsManager: React.FC = () => {
       case 'ignored': return 'bg-slate-100 text-slate-600 border-slate-200';
       default: return 'bg-slate-100 text-slate-600 border-slate-200';
     }
+
+      const enrichEmail = async (lead: BusinessLead) => {
+    const settings = await getSettings();
+    
+    if (!settings.enrichmentEnabled || !settings.enrichmentApiKey) {
+      alert('Email enrichment not configured. Please enable it in Settings.');
+      return;
+    }
+
+    setEnriching(lead.id);
+    
+    try {
+      const domain = emailEnrichmentService.extractDomain(lead.name, lead.website);
+      if (!domain) {
+        alert('Could not extract domain from business name');
+        setEnriching(null);
+        return;
+      }
+
+      const result = await emailEnrichmentService.findEmail(
+        domain,
+        lead.name?.split(' ')[0],
+        lead.name?.split(' ')[1],
+        settings.enrichmentApiKey
+      );
+
+      if (result.status === 'success' && result.email) {
+        const updated = { ...lead, email: result.email };
+        const { error } = await supabase
+          .from('leads')
+          .update({ email: result.email })
+          .eq('id', lead.id);
+
+        if (!error) {
+          setLeads(leads.map(l => l.id === lead.id ? updated : l));
+          setEnrichmentSuccess({ ...enrichmentSuccess, [lead.id]: true });
+          setTimeout(() => {
+            setEnrichmentSuccess(prev => {
+              const copy = { ...prev };
+              delete copy[lead.id];
+              return copy;
+            });
+          }, 3000);
+        }
+      } else {
+        alert(`No email found for ${lead.name}`);
+      }
+    } catch (error) {
+      console.error('Enrichment error:', error);
+      alert('Error enriching email. Please try again.');
+    } finally {
+      setEnriching(null);
+    }
+  };
   };
 
   const filteredLeads = leads.filter(l => {
