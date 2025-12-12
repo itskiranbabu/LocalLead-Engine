@@ -7,6 +7,15 @@ export default defineConfig(({ mode }) => {
   
   return {
     plugins: [react()],
+    build: {
+      outDir: 'dist',
+      sourcemap: false,
+      rollupOptions: {
+        output: {
+          manualChunks: undefined,
+        },
+      },
+    },
     define: {
       // Polyfill process.env for the browser
       'process.env.API_KEY': JSON.stringify(env.API_KEY || env.VITE_API_KEY),
