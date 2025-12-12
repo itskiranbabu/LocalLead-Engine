@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { getLeads, updateLead, getCampaigns, deleteLead } from '../services/storageService';
+import { getLeads, updateLead, getCampaigns, deleteLead, getSettings } from '../services/storageService';
 import { enrichLeadData, generateContentCalendar, performDeepResearch } from '../services/geminiService';
 import { BusinessLead, Campaign } from '../types';
-import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X, Microscope, Globe } from 'lucide-react', Zap } from 'lucide-react';
+import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X, Microscope, Globe, Zap } from 'lucide-react';
 import { emailEnrichmentService } from '../services/emailEnrichmentService';
+import { supabase } from '../lib/supabase';
 
 export const LeadsManager: React.FC = () => {
   const [leads, setLeads] = useState<BusinessLead[]>([]);
