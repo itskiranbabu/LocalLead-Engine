@@ -21,6 +21,12 @@ export interface BusinessLead {
   score?: number;
   tags?: string[];
   enrichmentData?: any;
+  metadata?: {
+    emailConfidence?: number;
+    enrichmentSource?: string;
+    enrichedAt?: string;
+    [key: string]: any;
+  };
   deepResearch?: {
     lastRun: string;
     iceBreakers: string[];
@@ -63,9 +69,12 @@ export interface AppSettings {
   offerings: string[]; // List of services the user sells
   googleSheetsConnected?: boolean;
   googleSheetId?: string;
-    enrichmentService?: 'hunter' | 'apollo' | 'clearbit' | null;
+  enrichmentService?: 'hunter' | 'apollo' | 'clearbit' | null;
   enrichmentApiKey?: string;
   enrichmentEnabled?: boolean;
+  n8nWebhookUrl?: string; // N8N webhook for email sending
+  n8nEnrichmentWebhook?: string; // N8N webhook for lead enrichment
+  hunterApiKey?: string; // Hunter.io API key for email enrichment
 }
 
 export interface SearchHistoryItem {
