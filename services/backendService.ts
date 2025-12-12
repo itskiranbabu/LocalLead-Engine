@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
+import { sendEmailViaN8N, EmailPayload } from './n8nEmailService';
 
-export interface EmailPayload {
+export interface EmailCampaignPayload {
   leadIds: string[];
   templateId?: string;
   campaignId?: string;
@@ -13,6 +14,49 @@ export interface EmailPayload {
 // N8N Webhook URL - Set via environment variable
 const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_WEBHOOK_URL || '';
 const USE_N8N = import.meta.env.VITE_USE_N8N === 'true';
+
+/**
+ * Send a single email via N8N
+ * @param toEmail Recipient email address
+ * @param subject Email subject
+ * @param htmlBody HTML email body
+ * @param fromEmail Optional sender email (defaults to user's email)
+ */
+export const sendSingleEmail = async (
+  toEmail: string,
+  subject: string,
+  htmlBody: string,
+  fromEmail?: string
+): Promise<{ success: boolean; message?: string; error?: string }> => {
+  
+  // Get user email if fromEmail not provided
+  let senderEmail = fromEmail;
+  
+  if (!senderEmail && supabase) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        senderEmail = user.email;
+      }
+    } catch (error) {
+      console.warn('Could not fetch user email:', error);
+    }
+  }
+
+  // Fallback to a default if still no email
+  if (!senderEmail) {
+    senderEmail = 'noreply@locallead.app';
+  }
+
+  const payload: EmailPayload = {
+    fromEmail: senderEmail,
+    toEmail,
+    subject,
+    message: htmlBody
+  };
+
+  return await sendEmailViaN8N(payload);
+};
 
 /**
  * Send email campaign via N8N workflow
