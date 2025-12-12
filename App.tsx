@@ -9,6 +9,7 @@ import { Strategy } from './pages/Strategy';
 import { Settings } from './pages/Settings';
 import { Templates } from './pages/Templates';
 import { Campaigns } from './pages/Campaigns';
+import { EmailCampaigns } from './pages/EmailCampaigns';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Landing } from './pages/Landing';
 import { SystemStatus } from './components/SystemStatus';
@@ -29,6 +30,7 @@ function AuthenticatedApp() {
     switch (currentPage) {
       case 'dashboard': return <Dashboard />;
       case 'campaigns': return <Campaigns />;
+      case 'email-campaigns': return <EmailCampaigns />;
       case 'lead-search': return <LeadSearch />;
       case 'leads': return <LeadsManager />;
       case 'templates': return <Templates />;
