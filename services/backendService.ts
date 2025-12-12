@@ -59,19 +59,18 @@ export const sendSingleEmail = async (
 };
 
 /**
- * Send email campaign via N8N workflow
+ * Send email campaign - simplified to use N8N for single emails
  */
-export const sendEmailCampaignViaN8N = async (
+export const sendEmailCampaign = async (
   leadIds: string[], 
   templateId?: string, 
   campaignId?: string,
   overrides?: { customSubject?: string; customBody?: string }
 ) => {
   if (!supabase) throw new Error("Supabase not configured");
-  if (!N8N_WEBHOOK_URL) throw new Error("N8N webhook URL not configured");
 
   try {
-    console.log('📧 Starting N8N email campaign...', { leadCount: leadIds.length });
+    console.log('📧 Starting email campaign...', { leadCount: leadIds.length, useN8N: USE_N8N });
 
     // Fetch leads
     const { data: leads, error: leadsError } = await supabase
@@ -82,87 +81,84 @@ export const sendEmailCampaignViaN8N = async (
     if (leadsError) throw leadsError;
     if (!leads || leads.length === 0) throw new Error('No leads found');
 
-    // Fetch template
-    let template = null;
-    if (templateId) {
-      const { data: templateData } = await supabase
-        .from('email_templates')
-        .select('*')
-        .eq('id', templateId)
-        .single();
-      template = templateData;
-    }
-
-    // Fetch profile
+    // Get user info for fromEmail
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    const fromEmail = user.email || 'noreply@locallead.app';
 
-    // Prepare payload
-    const payload = {
-      leads: leads,
-      template: template,
-      profile: profile || { 
-        full_name: user.email?.split('@')[0], 
-        company_name: 'LocalLead Engine',
-        email: user.email 
-      },
-      campaignId: campaignId,
-      customSubject: overrides?.customSubject,
-      customBody: overrides?.customBody,
-      userId: user.id
-    };
+    // Process each lead
+    const results = [];
+    let sent = 0;
+    let failed = 0;
 
-    console.log('📤 Sending to N8N...');
+    for (const lead of leads) {
+      try {
+        const subject = overrides?.customSubject || 'Message from LocalLead';
+        const body = overrides?.customBody || '<p>Hello!</p>';
 
-    // Call N8N webhook
-    const response = await fetch(N8N_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
+        // Use N8N if configured, otherwise use Supabase fallback
+        let result;
+        if (USE_N8N && N8N_WEBHOOK_URL) {
+          console.log(`📤 Sending via N8N to ${lead.email}`);
+          result = await sendSingleEmail(lead.email, subject, body, fromEmail);
+        } else {
+          console.log(`📤 Sending via Supabase to ${lead.email}`);
+          result = await sendEmailViaSupabase(lead.email, subject, body);
+        }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`N8N failed: ${response.status} - ${errorText}`);
-    }
+        if (result.success) {
+          sent++;
+          results.push({
+            leadId: lead.id,
+            status: 'sent',
+            email: lead.email
+          });
 
-    const result = await response.json();
-    console.log('✅ N8N response:', result);
+          // Log to database
+          await supabase.from('outreach_logs').insert({
+            user_id: user.id,
+            lead_id: lead.id,
+            campaign_id: campaignId || null,
+            channel: 'email',
+            status: 'sent',
+            subject: subject,
+            body: body
+          });
+        } else {
+          failed++;
+          results.push({
+            leadId: lead.id,
+            status: 'failed',
+            email: lead.email,
+            error: result.error
+          });
+        }
 
-    // Log to database
-    if (result.results && Array.isArray(result.results)) {
-      const logs = result.results.map((r: any) => ({
-        user_id: user.id,
-        lead_id: r.leadId,
-        campaign_id: campaignId || null,
-        channel: 'email',
-        status: r.status,
-        subject: overrides?.customSubject || template?.subject,
-        body: overrides?.customBody || template?.body,
-        error_message: r.error || null,
-      }));
-
-      await supabase.from('outreach_logs').insert(logs);
+      } catch (error: any) {
+        console.error(`❌ Failed to send to ${lead.email}:`, error);
+        failed++;
+        results.push({
+          leadId: lead.id,
+          status: 'failed',
+          email: lead.email,
+          error: error.message
+        });
+      }
     }
 
     return {
       success: true,
-      total: result.total || leads.length,
-      sent: result.sent || 0,
-      failed: result.failed || 0,
-      skipped: result.skipped || 0,
-      results: result.results || [],
-      provider: 'n8n'
+      total: leads.length,
+      sent,
+      failed,
+      skipped: 0,
+      results,
+      provider: USE_N8N ? 'n8n' : 'supabase'
     };
 
   } catch (error) {
-    console.error('❌ N8N error:', error);
+    console.error('❌ Email campaign error:', error);
     throw error;
   }
 };
@@ -170,47 +166,24 @@ export const sendEmailCampaignViaN8N = async (
 /**
  * Send via Supabase Edge Function (Fallback)
  */
-export const sendEmailCampaignViaSupabase = async (
-  leadIds: string[], 
-  templateId?: string, 
-  campaignId?: string,
-  overrides?: { customSubject?: string; customBody?: string }
-) => {
+const sendEmailViaSupabase = async (
+  toEmail: string,
+  subject: string,
+  body: string
+): Promise<{ success: boolean; message?: string; error?: string }> => {
   if (!supabase) throw new Error("Supabase not configured");
 
-  console.log('📧 Using Supabase fallback...');
+  try {
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: { toEmail, subject, body }
+    });
 
-  const { data, error } = await supabase.functions.invoke('send-email', {
-    body: { leadIds, templateId, campaignId, ...overrides }
-  });
+    if (error) throw error;
 
-  if (error) throw error;
-
-  return { ...data, provider: 'supabase' };
-};
-
-/**
- * Main email sender with automatic fallback
- */
-export const sendEmailCampaign = async (
-  leadIds: string[], 
-  templateId?: string, 
-  campaignId?: string,
-  overrides?: { customSubject?: string; customBody?: string }
-) => {
-  // Try N8N first if configured
-  if (USE_N8N && N8N_WEBHOOK_URL) {
-    try {
-      console.log('🔄 Using N8N...');
-      return await sendEmailCampaignViaN8N(leadIds, templateId, campaignId, overrides);
-    } catch (error) {
-      console.warn('⚠️ N8N failed, using Supabase...', error);
-    }
+    return { success: true, message: 'Email sent via Supabase' };
+  } catch (error: any) {
+    return { success: false, error: error.message };
   }
-
-  // Fallback to Supabase
-  console.log('🔄 Using Supabase...');
-  return await sendEmailCampaignViaSupabase(leadIds, templateId, campaignId, overrides);
 };
 
 /**
