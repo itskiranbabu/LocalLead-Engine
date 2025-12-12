@@ -71,37 +71,43 @@ export interface EmailLog {
 export const DEFAULT_TEMPLATES: EmailTemplate[] = [
   {
     id: 'cold_outreach_1',
-    name: 'Cold Outreach - Value Proposition',
+    name: 'Cold Outreach - Professional & Friendly',
     subject: 'Quick question about {{business}}',
-    body: `Hi {{name}},
+    body: `Hey {{name}} team! 👋
 
-I noticed {{business}} in {{city}} and wanted to reach out.
+Kiran from Content Spark here. Came across your {{category}} in {{city}} - really impressive! 💪
 
-I help local businesses like yours [YOUR VALUE PROPOSITION]. 
+I help local businesses grow their customer base through smart digital strategies. Would love to chat about some ideas specifically for {{business}}.
 
-Would you be open to a quick 15-minute call this week to discuss how we could help {{business}}?
+Check out what we do: tr.ee/itskiranbabu 🚀
 
-Best regards,
-{{sender_name}}`,
-    variables: ['name', 'business', 'city', 'sender_name'],
+Free for a 10-min call this week? ☕
+
+Cheers!
+Kiran Babu
+Content Spark`,
+    variables: ['name', 'business', 'category', 'city'],
     category: 'cold_outreach',
     createdAt: new Date().toISOString(),
   },
   {
     id: 'cold_outreach_2',
-    name: 'Cold Outreach - Problem Solution',
-    subject: 'Helping {{business}} with [SPECIFIC PROBLEM]',
+    name: 'Cold Outreach - Value Focused',
+    subject: 'Helping {{business}} get more customers in {{city}}',
     body: `Hi {{name}},
 
-I came across {{business}} and noticed you're in the {{category}} industry in {{city}}.
+I noticed {{business}} in {{city}} and wanted to reach out.
 
-Many businesses like yours struggle with [SPECIFIC PROBLEM]. We've helped similar businesses [SPECIFIC RESULT].
+Most businesses in {{category}} struggle with consistent customer acquisition. I help solve that through proven digital strategies.
 
-Would you be interested in learning how we could help {{business}} achieve similar results?
+Here's what we do: tr.ee/itskiranbabu 🚀
 
-Looking forward to hearing from you,
-{{sender_name}}`,
-    variables: ['name', 'business', 'category', 'city', 'sender_name'],
+Would you be open to a quick 15-minute call to discuss how we could help {{business}} grow?
+
+Best regards,
+Kiran Babu
+Content Spark`,
+    variables: ['name', 'business', 'category', 'city'],
     category: 'cold_outreach',
     createdAt: new Date().toISOString(),
   },
@@ -109,57 +115,110 @@ Looking forward to hearing from you,
     id: 'follow_up_1',
     name: 'Follow-up - Gentle Reminder',
     subject: 'Re: Quick question about {{business}}',
-    body: `Hi {{name}},
+    body: `Hey {{name}},
 
-I wanted to follow up on my previous email about helping {{business}}.
+Just following up on my message from earlier this week.
 
-I understand you're busy, so I'll keep this brief:
+I know you're busy, so I'll keep this quick - I have 3 specific ideas that could help {{business}} get more customers in {{city}}.
 
-[ONE SENTENCE VALUE PROPOSITION]
+Would a 10-minute call work for you? Happy to work around your schedule! ☕
 
-Would you have 10 minutes this week for a quick call?
+Cheers!
+Kiran Babu
+Content Spark
 
-Best,
-{{sender_name}}`,
-    variables: ['name', 'business', 'sender_name'],
+P.S. Here's what we do: tr.ee/itskiranbabu`,
+    variables: ['name', 'business', 'city'],
     category: 'follow_up',
     createdAt: new Date().toISOString(),
   },
   {
     id: 'follow_up_2',
-    name: 'Follow-up - Case Study',
-    subject: 'How we helped [SIMILAR BUSINESS] in {{city}}',
+    name: 'Follow-up - Case Study Approach',
+    subject: 'How we helped [similar business] in {{city}}',
     body: `Hi {{name}},
 
-I wanted to share a quick success story that might interest you.
+Quick success story that might interest you:
 
-We recently helped [SIMILAR BUSINESS] in {{city}} achieve [SPECIFIC RESULT].
+We recently helped a {{category}} business in {{city}} increase their customer base by 40% in just 2 months using smart digital strategies.
 
 Given that {{business}} is in the same industry, I thought you might find this relevant.
 
-Would you like to hear more about how we did it?
+Want to hear how we did it? 📈
 
-Best regards,
-{{sender_name}}`,
-    variables: ['name', 'business', 'city', 'sender_name'],
+Let me know if you'd like to chat!
+
+Best,
+Kiran Babu
+Content Spark
+
+What we do: tr.ee/itskiranbabu`,
+    variables: ['name', 'business', 'category', 'city'],
+    category: 'follow_up',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'follow_up_3',
+    name: 'Follow-up - Final Touchpoint',
+    subject: 'Last message from me - {{business}}',
+    body: `Hey {{name}}! 👋
+
+Last message from me - I promise! 😊
+
+I genuinely think there's some untapped potential for {{business}} in {{city}}. If you're interested in exploring growth strategies, I'm here.
+
+If not, no worries at all! Wishing you all the best! 🚀
+
+Cheers!
+Kiran Babu
+Content Spark
+
+tr.ee/itskiranbabu`,
+    variables: ['name', 'business', 'city'],
     category: 'follow_up',
     createdAt: new Date().toISOString(),
   },
   {
     id: 'meeting_request_1',
-    name: 'Meeting Request - Direct',
+    name: 'Meeting Request - Coffee Chat',
     subject: 'Coffee chat about {{business}}?',
     body: `Hi {{name}},
 
-I'd love to learn more about {{business}} and share some ideas that might be helpful.
+I'd love to learn more about {{business}} and share some growth ideas that might be helpful.
 
 Are you available for a quick coffee chat next week? I'm flexible with timing and happy to meet near {{city}}.
 
-Let me know what works for you!
+Let me know what works for you! ☕
 
 Best,
-{{sender_name}}`,
-    variables: ['name', 'business', 'city', 'sender_name'],
+Kiran Babu
+Content Spark
+
+What we do: tr.ee/itskiranbabu`,
+    variables: ['name', 'business', 'city'],
+    category: 'meeting_request',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'meeting_request_2',
+    name: 'Meeting Request - Virtual Call',
+    subject: 'Quick 15-min call about {{business}}?',
+    body: `Hey {{name}}! 👋
+
+I have some specific ideas for {{business}} that I'd love to share.
+
+Would you be up for a quick 15-minute virtual call this week? I can work around your schedule.
+
+Here's my calendar: [Your calendar link]
+
+Looking forward to chatting!
+
+Cheers!
+Kiran Babu
+Content Spark
+
+tr.ee/itskiranbabu 🚀`,
+    variables: ['name', 'business'],
     category: 'meeting_request',
     createdAt: new Date().toISOString(),
   },
@@ -169,7 +228,7 @@ Best,
 export const DEFAULT_SEQUENCES: EmailSequence[] = [
   {
     id: 'sequence_cold_3step',
-    name: '3-Step Cold Outreach',
+    name: '3-Step Cold Outreach (Professional)',
     active: true,
     steps: [
       {
@@ -232,8 +291,44 @@ export const DEFAULT_SEQUENCES: EmailSequence[] = [
       {
         id: 'step_5',
         order: 5,
-        templateId: 'follow_up_1',
+        templateId: 'follow_up_3',
         delayDays: 14,
+        condition: 'no_reply',
+      },
+    ],
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'sequence_cold_4step',
+    name: '4-Step Cold Outreach (Balanced)',
+    active: true,
+    steps: [
+      {
+        id: 'step_1',
+        order: 1,
+        templateId: 'cold_outreach_2',
+        delayDays: 0,
+        condition: 'always',
+      },
+      {
+        id: 'step_2',
+        order: 2,
+        templateId: 'follow_up_1',
+        delayDays: 3,
+        condition: 'no_reply',
+      },
+      {
+        id: 'step_3',
+        order: 3,
+        templateId: 'follow_up_2',
+        delayDays: 7,
+        condition: 'no_reply',
+      },
+      {
+        id: 'step_4',
+        order: 4,
+        templateId: 'meeting_request_2',
+        delayDays: 12,
         condition: 'no_reply',
       },
     ],
@@ -491,9 +586,21 @@ class EmailCampaignService {
 
     const analytics = {
       totalScheduled: logs.length,
-      sent: logs.filter(l => l.status === 'sent' || l.status === 'opened' || l.status === 'clicked' || l.status === 'replied').length,
-      opened: logs.filter(l => l.status === 'opened' || l.status === 'clicked' || l.status === 'replied').length,
-      clicked: logs.filter(l => l.status === 'clicked' || l.status === 'replied').length,
+      sent: logs.filter(l => 
+        l.status === 'sent' || 
+        l.status === 'opened' || 
+        l.status === 'clicked' || 
+        l.status === 'replied'
+      ).length,
+      opened: logs.filter(l => 
+        l.status === 'opened' || 
+        l.status === 'clicked' || 
+        l.status === 'replied'
+      ).length,
+      clicked: logs.filter(l => 
+        l.status === 'clicked' || 
+        l.status === 'replied'
+      ).length,
       replied: logs.filter(l => l.status === 'replied').length,
       bounced: logs.filter(l => l.status === 'bounced').length,
       failed: logs.filter(l => l.status === 'failed').length,
