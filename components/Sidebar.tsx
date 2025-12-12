@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, MapPin, Users, Mail, Settings, BrainCircuit, FileText, Target } from 'lucide-react';
+import { LayoutDashboard, MapPin, Users, Mail, Settings, BrainCircuit, FileText, Target, Send } from 'lucide-react';
 
 interface SidebarProps {
   currentPage: string;
@@ -9,6 +9,7 @@ interface SidebarProps {
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'campaigns', label: 'Campaigns', icon: Target },
+  { id: 'email-campaigns', label: 'Email Campaigns', icon: Send },
   { id: 'lead-search', label: 'Lead Search', icon: MapPin },
   { id: 'leads', label: 'Leads Manager', icon: Users },
   { id: 'templates', label: 'Email Templates', icon: FileText },
@@ -27,7 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, onNavigate }) => 
         </h1>
       </div>
       
-      <nav className="flex-1 px-4 space-y-2 mt-4">
+      <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto">
         {navItems.map((item) => (
           <button
             key={item.id}
