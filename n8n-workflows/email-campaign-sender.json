@@ -1,0 +1,380 @@
+{
+  "name": "LocalLead Email Campaign Sender",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "locallead-send-email",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook - Receive Email Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "locallead-email-sender"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.body.action}}",
+              "operation": "equals",
+              "value2": "send_email"
+            }
+          ]
+        }
+      },
+      "id": "check-action",
+      "name": "Check Action Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract email data from webhook\nconst emailData = $input.item.json.body;\n\nreturn {\n  json: {\n    campaignId: emailData.campaignId,\n    leadId: emailData.leadId,\n    emailLogId: emailData.emailLogId,\n    to: emailData.to,\n    subject: emailData.subject,\n    body: emailData.body,\n    trackingId: emailData.emailLogId,\n    // Add tracking pixel\n    bodyWithTracking: emailData.body + `\\n\\n<img src=\"https://your-n8n-instance.com/webhook/track-open/${emailData.emailLogId}\" width=\"1\" height=\"1\" />`,\n    // Replace links with tracking links\n    bodyWithClickTracking: emailData.body.replace(\n      /(https?:\\/\\/[^\\s]+)/g,\n      `https://your-n8n-instance.com/webhook/track-click/${emailData.emailLogId}?url=$1`\n    )\n  }\n};"
+      },
+      "id": "prepare-email",
+      "name": "Prepare Email Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json.to}}",
+        "subject": "={{$json.subject}}",
+        "emailType": "html",
+        "message": "={{$json.bodyWithClickTracking}}",
+        "options": {
+          "allowUnauthorizedCerts": false
+        }
+      },
+      "id": "send-gmail",
+      "name": "Send Email via Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{$json.callbackUrl}}",
+        "options": {
+          "bodyParametersUi": {
+            "parameter": [
+              {
+                "name": "emailLogId",
+                "value": "={{$json.emailLogId}}"
+              },
+              {
+                "name": "status",
+                "value": "sent"
+              },
+              {
+                "name": "sentAt",
+                "value": "={{new Date().toISOString()}}"
+              },
+              {
+                "name": "messageId",
+                "value": "={{$json.id}}"
+              }
+            ]
+          }
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      },
+      "id": "update-status-sent",
+      "name": "Update Status - Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"message\": \"Email sent successfully\", \"emailLogId\": $json.emailLogId } }}"
+      },
+      "id": "respond-success",
+      "name": "Respond - Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.callbackUrl}}",
+        "options": {
+          "bodyParametersUi": {
+            "parameter": [
+              {
+                "name": "emailLogId",
+                "value": "={{$json.emailLogId}}"
+              },
+              {
+                "name": "status",
+                "value": "failed"
+              },
+              {
+                "name": "error",
+                "value": "={{$json.error}}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "update-status-failed",
+      "name": "Update Status - Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": false, \"message\": \"Email sending failed\", \"error\": $json.error } }}"
+      },
+      "id": "respond-error",
+      "name": "Respond - Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "track-open/:emailLogId",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-track-open",
+      "name": "Webhook - Track Open",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 600]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.headers.referer}}/api/email-tracking/open",
+        "options": {
+          "bodyParametersUi": {
+            "parameter": [
+              {
+                "name": "emailLogId",
+                "value": "={{$json.params.emailLogId}}"
+              },
+              {
+                "name": "openedAt",
+                "value": "={{new Date().toISOString()}}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "update-open-status",
+      "name": "Update Open Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 600]
+    },
+    {
+      "parameters": {
+        "respondWith": "binary",
+        "binaryData": "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+      },
+      "id": "respond-tracking-pixel",
+      "name": "Respond - Tracking Pixel",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 600]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "track-click/:emailLogId",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-track-click",
+      "name": "Webhook - Track Click",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 800]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.headers.referer}}/api/email-tracking/click",
+        "options": {
+          "bodyParametersUi": {
+            "parameter": [
+              {
+                "name": "emailLogId",
+                "value": "={{$json.params.emailLogId}}"
+              },
+              {
+                "name": "clickedAt",
+                "value": "={{new Date().toISOString()}}"
+              },
+              {
+                "name": "url",
+                "value": "={{$json.query.url}}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "update-click-status",
+      "name": "Update Click Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [450, 800]
+    },
+    {
+      "parameters": {
+        "respondWith": "redirect",
+        "redirectURL": "={{$json.query.url}}"
+      },
+      "id": "respond-redirect",
+      "name": "Respond - Redirect to URL",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 800]
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Email Request": {
+      "main": [
+        [
+          {
+            "node": "Check Action Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Action Type": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email Data": {
+      "main": [
+        [
+          {
+            "node": "Send Email via Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email via Gmail": {
+      "main": [
+        [
+          {
+            "node": "Update Status - Sent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Status - Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status - Sent": {
+      "main": [
+        [
+          {
+            "node": "Respond - Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Status - Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond - Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Track Open": {
+      "main": [
+        [
+          {
+            "node": "Update Open Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Open Status": {
+      "main": [
+        [
+          {
+            "node": "Respond - Tracking Pixel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Track Click": {
+      "main": [
+        [
+          {
+            "node": "Update Click Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Click Status": {
+      "main": [
+        [
+          {
+            "node": "Respond - Redirect to URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-12-13T01:00:00.000Z",
+  "versionId": "1"
+}
