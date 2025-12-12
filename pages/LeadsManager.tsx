@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getLeads, updateLead, getCampaigns, deleteLead, getSettings } from '../services/storageService';
 import { enrichLeadData, generateContentCalendar, performDeepResearch } from '../services/geminiService';
 import { BusinessLead, Campaign } from '../types';
-import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X, Microscope, Globe, Zap } from 'lucide-react';
+import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X, Microscope, Globe, Zap, Edit } from 'lucide-react';
 import { emailEnrichmentService } from '../services/emailEnrichmentService';
 import { supabase } from '../lib/supabase';
 
@@ -23,6 +23,10 @@ export const LeadsManager: React.FC = () => {
   const [researchLead, setResearchLead] = useState<BusinessLead | null>(null);
   const [researchResult, setResearchResult] = useState<any>(null);
   const [researching, setResearching] = useState(false);
+
+  // Edit Lead State
+  const [editingLead, setEditingLead] = useState<BusinessLead | null>(null);
+  const [editForm, setEditForm] = useState<Partial<BusinessLead>>({});
 
   useEffect(() => {
     loadData();
@@ -103,99 +107,118 @@ export const LeadsManager: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if(confirm('Are you sure you want to delete this lead?')) {
-        await deleteLead(id);
-        await loadData();
+    if (confirm('Are you sure you want to delete this lead?')) {
+      await deleteLead(id);
+      await loadData();
     }
   };
 
   const handleExportCSV = () => {
-    if (leads.length === 0) return;
-
-    const headers = ['ID', 'Name', 'Email', 'Phone', 'City', 'Category', 'Status', 'Website', 'Campaign', 'Notes'];
-    const rows = leads.map(l => {
-        const campaignName = campaigns.find(c => c.id === l.campaignId)?.name || '';
-        return [
-            `"${l.id}"`,
-            `"${l.name}"`,
-            `"${l.email || ''}"`,
-            `"${l.phone || ''}"`,
-            `"${l.city}"`,
-            `"${l.category}"`,
-            `"${l.status}"`,
-            `"${l.website || ''}"`,
-            `"${campaignName}"`,
-            `"${(l.notes || '').replace(/"/g, '""')}"`
-        ];
-    });
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-        + [headers.join(','), ...rows.map(e => e.join(','))].join("\n");
+    const headers = ['Name', 'Email', 'Phone', 'Website', 'Address', 'City', 'Category', 'Status', 'Campaign'];
+    const rows = leads.map(l => [
+      l.name,
+      l.email || '',
+      l.phone || '',
+      l.website || '',
+      l.address || '',
+      l.city,
+      l.category,
+      l.status,
+      campaigns.find(c => c.id === l.campaignId)?.name || ''
+    ]);
     
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `leads_export_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
   };
 
   const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'new': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'contacted': return 'bg-amber-100 text-amber-700 border-amber-200';
-      case 'replied': return 'bg-purple-100 text-purple-700 border-purple-200';
-      case 'converted': return 'bg-green-100 text-green-700 border-green-200';
-      case 'ignored': return 'bg-slate-100 text-slate-600 border-slate-200';
-      default: return 'bg-slate-100 text-slate-600 border-slate-200';
+    switch (status) {
+      case 'new': return 'bg-blue-100 text-blue-700 border-blue-300';
+      case 'contacted': return 'bg-yellow-100 text-yellow-700 border-yellow-300';
+      case 'replied': return 'bg-purple-100 text-purple-700 border-purple-300';
+      case 'converted': return 'bg-green-100 text-green-700 border-green-300';
+      case 'ignored': return 'bg-slate-100 text-slate-500 border-slate-300';
+      default: return 'bg-slate-100 text-slate-600 border-slate-300';
+    }
+  };
+
+  // Edit Lead Functions
+  const openEditModal = (lead: BusinessLead) => {
+    setEditingLead(lead);
+    setEditForm({
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone,
+      website: lead.website,
+      address: lead.address,
+      category: lead.category,
+    });
+  };
+
+  const closeEditModal = () => {
+    setEditingLead(null);
+    setEditForm({});
+  };
+
+  const handleEditFormChange = (field: string, value: string) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingLead) return;
+
+    // Validate email format if provided
+    if (editForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email)) {
+      alert('Please enter a valid email address');
+      return;
     }
 
-      const enrichEmail = async (lead: BusinessLead) => {
-    const settings = await getSettings();
-    
-    if (!settings.enrichmentEnabled || !settings.enrichmentApiKey) {
-      alert('Email enrichment not configured. Please enable it in Settings.');
+    const updated = { ...editingLead, ...editForm };
+    await updateLead(updated);
+    await loadData();
+    closeEditModal();
+  };
+
+  const enrichEmail = async (lead: BusinessLead) => {
+    if (!lead.website) {
+      alert('Website is required for email enrichment');
       return;
     }
 
     setEnriching(lead.id);
-    
+    setEnrichmentSuccess(prev => ({ ...prev, [lead.id]: false }));
+
     try {
-      const domain = emailEnrichmentService.extractDomain(lead.name, lead.website);
-      if (!domain) {
-        alert('Could not extract domain from business name');
+      const settings = await getSettings();
+      
+      if (!settings.hunterApiKey) {
+        alert('Hunter.io API key not configured. Please add it in Settings.');
         setEnriching(null);
         return;
       }
 
-      const result = await emailEnrichmentService.findEmail(
-        domain,
-        lead.name?.split(' ')[0],
-        lead.name?.split(' ')[1],
-        settings.enrichmentApiKey
-      );
+      const domain = new URL(lead.website).hostname.replace('www.', '');
+      const result = await emailEnrichmentService.findEmail(domain, lead.name, settings.hunterApiKey);
 
-      if (result.status === 'success' && result.email) {
+      if (result.email) {
         const updated = { ...lead, email: result.email };
-        const { error } = await supabase
-          .from('leads')
-          .update({ email: result.email })
-          .eq('id', lead.id);
-
-        if (!error) {
-          setLeads(leads.map(l => l.id === lead.id ? updated : l));
-          setEnrichmentSuccess({ ...enrichmentSuccess, [lead.id]: true });
-          setTimeout(() => {
-            setEnrichmentSuccess(prev => {
-              const copy = { ...prev };
-              delete copy[lead.id];
-              return copy;
-            });
-          }, 3000);
-        }
+        await updateLead(updated);
+        await loadData();
+        setEnrichmentSuccess(prev => ({ ...prev, [lead.id]: true }));
+        setTimeout(() => {
+          setEnrichmentSuccess(prev => ({ ...prev, [lead.id]: false }));
+        }, 3000);
       } else {
-        alert(`No email found for ${lead.name}`);
+        alert('No email found for this lead');
       }
     } catch (error) {
       console.error('Enrichment error:', error);
@@ -203,7 +226,6 @@ export const LeadsManager: React.FC = () => {
     } finally {
       setEnriching(null);
     }
-  };
   };
 
   const filteredLeads = leads.filter(l => {
@@ -344,6 +366,13 @@ export const LeadsManager: React.FC = () => {
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
                             <button
+                                onClick={() => openEditModal(lead)}
+                                className="text-green-600 hover:text-green-800 font-medium text-xs flex items-center gap-1 bg-green-50 p-1.5 rounded"
+                                title="Edit Lead"
+                            >
+                                <Edit size={14} />
+                            </button>
+                            <button
                                 onClick={() => handleDeepResearch(lead)}
                                 className="text-pink-600 hover:text-pink-800 font-medium text-xs flex items-center gap-1 bg-pink-50 p-1.5 rounded"
                                 title="Deep Research & Icebreakers"
@@ -382,6 +411,106 @@ export const LeadsManager: React.FC = () => {
         </div>
       </div>
 
+      {/* Edit Lead Modal */}
+      {editingLead && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">Edit Lead</h3>
+                <p className="text-sm text-slate-500">Update lead information</p>
+              </div>
+              <button onClick={closeEditModal} className="text-slate-400 hover:text-slate-600">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Business Name *</label>
+                  <input
+                    type="text"
+                    value={editForm.name || ''}
+                    onChange={(e) => handleEditFormChange('name', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Enter business name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editForm.email || ''}
+                    onChange={(e) => handleEditFormChange('email', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="contact@example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+                  <input
+                    type="tel"
+                    value={editForm.phone || ''}
+                    onChange={(e) => handleEditFormChange('phone', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="+1234567890"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Website</label>
+                  <input
+                    type="url"
+                    value={editForm.website || ''}
+                    onChange={(e) => handleEditFormChange('website', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://example.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+                  <input
+                    type="text"
+                    value={editForm.address || ''}
+                    onChange={(e) => handleEditFormChange('address', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="123 Main St"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Category</label>
+                  <input
+                    type="text"
+                    value={editForm.category || ''}
+                    onChange={(e) => handleEditFormChange('category', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Restaurant, Gym, etc."
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
+              <button
+                onClick={closeEditModal}
+                className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content Calendar Modal */}
       {calendarLead && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -399,21 +528,17 @@ export const LeadsManager: React.FC = () => {
                     {generatingCalendar ? (
                         <div className="flex flex-col items-center justify-center py-12">
                             <Loader2 className="animate-spin text-purple-600 mb-4" size={48} />
-                            <p className="text-slate-500 font-medium">Researching local trends in {calendarLead.city}...</p>
+                            <p className="text-slate-600">Generating personalized content calendar...</p>
+                        </div>
+                    ) : calendarContent ? (
+                        <div className="prose prose-sm max-w-none">
+                            <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700 leading-relaxed">
+                                {calendarContent}
+                            </pre>
                         </div>
                     ) : (
-                        <div className="prose prose-sm max-w-none whitespace-pre-wrap text-slate-700 font-medium">
-                            {calendarContent}
-                        </div>
+                        <p className="text-slate-500 text-center py-8">No content generated yet.</p>
                     )}
-                </div>
-                <div className="p-4 border-t border-slate-100 bg-white rounded-b-xl flex justify-end">
-                    <button 
-                        onClick={() => setCalendarLead(null)}
-                        className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold"
-                    >
-                        Close
-                    </button>
                 </div>
             </div>
         </div>
@@ -422,77 +547,83 @@ export const LeadsManager: React.FC = () => {
       {/* Deep Research Modal */}
       {researchLead && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col animate-in fade-in zoom-in duration-200">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-pink-50 rounded-t-xl">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-pink-100 p-2 rounded-full text-pink-600">
-                            <Microscope size={24} />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold text-slate-800">Deep Research Intelligence</h3>
-                            <p className="text-sm text-slate-600">Analysis for {researchLead.name}</p>
-                        </div>
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[80vh] flex flex-col animate-in fade-in zoom-in duration-200">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <Microscope className="text-pink-600" size={24} />
+                            Deep Research & Icebreakers
+                        </h3>
+                        <p className="text-sm text-slate-500">For {researchLead.name} ({researchLead.city})</p>
                     </div>
                     <button onClick={() => setResearchLead(null)} className="text-slate-400 hover:text-slate-600">
                         <X size={24} />
                     </button>
                 </div>
-                
-                <div className="p-6 overflow-y-auto flex-1 bg-white">
+                <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
                     {researching ? (
                         <div className="flex flex-col items-center justify-center py-12">
                             <Loader2 className="animate-spin text-pink-600 mb-4" size={48} />
-                            <p className="text-slate-500 font-medium">Analyzing news and events for {researchLead.name}...</p>
+                            <p className="text-slate-600">Performing deep research...</p>
+                            <p className="text-xs text-slate-400 mt-2">This may take a moment</p>
                         </div>
                     ) : researchResult ? (
                         <div className="space-y-6">
                             {researchResult.error ? (
-                                <div className="text-red-500 p-4 bg-red-50 rounded-lg">{researchResult.error}</div>
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+                                    {researchResult.error}
+                                </div>
                             ) : (
                                 <>
-                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                        <h4 className="font-bold text-slate-700 mb-2 uppercase text-xs tracking-wide">Summary</h4>
-                                        <p className="text-slate-700 leading-relaxed">{researchResult.summary}</p>
-                                    </div>
+                                    {researchResult.summary && (
+                                        <div className="bg-white rounded-lg p-4 border border-slate-200">
+                                            <h4 className="font-bold text-slate-800 mb-2 flex items-center gap-2">
+                                                <Globe size={16} className="text-blue-600" />
+                                                Business Summary
+                                            </h4>
+                                            <p className="text-sm text-slate-700 leading-relaxed">{researchResult.summary}</p>
+                                        </div>
+                                    )}
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div>
-                                            <h4 className="font-bold text-pink-600 mb-3 flex items-center gap-2">
-                                                <Sparkles size={16} /> Ice Breakers
+                                    {researchResult.icebreakers && researchResult.icebreakers.length > 0 && (
+                                        <div className="bg-white rounded-lg p-4 border border-slate-200">
+                                            <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                                <Zap size={16} className="text-yellow-600" />
+                                                Conversation Starters
                                             </h4>
-                                            <ul className="space-y-3">
-                                                {researchResult.iceBreakers?.map((point: string, i: number) => (
-                                                    <li key={i} className="text-sm text-slate-700 bg-pink-50/50 p-3 rounded-lg border border-pink-100">
-                                                        "{point}"
+                                            <ul className="space-y-2">
+                                                {researchResult.icebreakers.map((ice: string, idx: number) => (
+                                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                                        <span className="text-yellow-600 font-bold">•</span>
+                                                        <span>{ice}</span>
                                                     </li>
                                                 ))}
                                             </ul>
                                         </div>
-                                        <div>
-                                            <h4 className="font-bold text-blue-600 mb-3 flex items-center gap-2">
-                                                <Globe size={16} /> Recent News/Activity
+                                    )}
+
+                                    {researchResult.recentNews && researchResult.recentNews.length > 0 && (
+                                        <div className="bg-white rounded-lg p-4 border border-slate-200">
+                                            <h4 className="font-bold text-slate-800 mb-3 flex items-center gap-2">
+                                                <Globe size={16} className="text-green-600" />
+                                                Recent News & Updates
                                             </h4>
-                                            <ul className="space-y-3">
-                                                {researchResult.news?.map((news: string, i: number) => (
-                                                    <li key={i} className="text-sm text-slate-600 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
-                                                        {news}
+                                            <ul className="space-y-2">
+                                                {researchResult.recentNews.map((news: string, idx: number) => (
+                                                    <li key={idx} className="text-sm text-slate-700 flex items-start gap-2">
+                                                        <span className="text-green-600 font-bold">•</span>
+                                                        <span>{news}</span>
                                                     </li>
                                                 ))}
                                             </ul>
                                         </div>
-                                    </div>
+                                    )}
                                 </>
                             )}
                         </div>
-                    ) : null}
-                </div>
-                <div className="p-4 border-t border-slate-100 bg-white rounded-b-xl flex justify-end">
-                    <button 
-                        onClick={() => setResearchLead(null)}
-                        className="bg-slate-900 text-white px-6 py-2 rounded-lg font-bold"
-                    >
-                        Done
-                    </button>
+                    ) : (
+                        <p className="text-slate-500 text-center py-8">No research data available.</p>
+                    )}
                 </div>
             </div>
         </div>
