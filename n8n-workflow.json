@@ -1,0 +1,129 @@
+{
+  "name": "LocalLead Email Sender",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "locallead-send-email",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-node",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "locallead-email-sender"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body || $input.item.json;\nconst leads = body.leads || [];\nconst template = body.template || {};\nconst profile = body.profile || {};\nconst customSubject = body.customSubject;\nconst customBody = body.customBody;\n\nconst results = [];\n\nfor (const lead of leads) {\n  if (!lead.email) {\n    results.push({\n      leadId: lead.id,\n      email: null,\n      status: 'skipped',\n      reason: 'No email address'\n    });\n    continue;\n  }\n  \n  let subject = customSubject || template.subject || 'Hello';\n  let body = customBody || template.body || 'Hi there';\n  \n  const contactName = lead.name || 'there';\n  const businessName = lead.business_type || lead.name || 'your business';\n  const city = lead.city || 'your area';\n  const yourName = profile.full_name || 'the team';\n  const yourCompany = profile.company_name || 'LocalLead Engine';\n  \n  body = body\n    .replace(/\\{\\{contact_name\\}\\}/g, contactName)\n    .replace(/\\{\\{business_name\\}\\}/g, businessName)\n    .replace(/\\{\\{city\\}\\}/g, city)\n    .replace(/\\{\\{your_name\\}\\}/g, yourName)\n    .replace(/\\{\\{your_company\\}\\}/g, yourCompany);\n  \n  subject = subject\n    .replace(/\\{\\{business_name\\}\\}/g, businessName)\n    .replace(/\\{\\{city\\}\\}/g, city)\n    .replace(/\\{\\{your_company\\}\\}/g, yourCompany);\n  \n  results.push({\n    to: lead.email,\n    subject: subject,\n    body: body,\n    leadId: lead.id,\n    leadName: lead.name,\n    fromEmail: profile.email || 'noreply@yourdomain.com',\n    fromName: profile.full_name || yourCompany\n  });\n}\n\nreturn results.map(r => ({ json: r }));"
+      },
+      "id": "code-node",
+      "name": "Process Emails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.status}}",
+              "operation": "notEquals",
+              "value2": "skipped"
+            }
+          ]
+        }
+      },
+      "id": "filter-node",
+      "name": "Filter Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$json.fromEmail}}",
+        "toEmail": "={{$json.to}}",
+        "subject": "={{$json.subject}}",
+        "emailType": "html",
+        "message": "={{$json.body.replace(/\\n/g, '<br>')}}"
+      },
+      "id": "gmail-node",
+      "name": "Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [850, 200],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\nreturn [{ json: { ...item, status: 'sent', sentAt: new Date().toISOString() } }];"
+      },
+      "id": "success-node",
+      "name": "Mark Sent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst results = allItems.map(item => ({\n  leadId: item.json.leadId,\n  email: item.json.to,\n  status: item.json.status || 'sent',\n  sentAt: item.json.sentAt,\n  reason: item.json.reason\n}));\n\nconst sent = results.filter(r => r.status === 'sent').length;\nconst failed = results.filter(r => r.status === 'failed').length;\nconst skipped = results.filter(r => r.status === 'skipped').length;\n\nreturn [{ json: { success: true, total: results.length, sent, failed, skipped, results } }];"
+      },
+      "id": "aggregate-node",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}"
+      },
+      "id": "response-node",
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "Process Emails", "type": "main", "index": 0 }]]
+    },
+    "Process Emails": {
+      "main": [[{ "node": "Filter Valid", "type": "main", "index": 0 }]]
+    },
+    "Filter Valid": {
+      "main": [
+        [{ "node": "Gmail", "type": "main", "index": 0 }],
+        [{ "node": "Aggregate", "type": "main", "index": 0 }]
+      ]
+    },
+    "Gmail": {
+      "main": [[{ "node": "Mark Sent", "type": "main", "index": 0 }]]
+    },
+    "Mark Sent": {
+      "main": [[{ "node": "Aggregate", "type": "main", "index": 0 }]]
+    },
+    "Aggregate": {
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2024-12-12T12:00:00.000Z",
+  "versionId": "1"
+}
