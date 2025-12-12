@@ -1,0 +1,166 @@
+{
+  "name": "LocalLead Engine - Lead Enrichment Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enrich-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "lead-enrichment"
+    },
+    {
+      "parameters": {
+        "operation": "domainSearch",
+        "domain": "={{ $json.website }}",
+        "additionalFields": {
+          "limit": 10
+        }
+      },
+      "id": "hunter-email-finder",
+      "name": "Hunter.io - Find Email",
+      "type": "n8n-nodes-base.hunterIo",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "hunterIoApi": {
+          "id": "1",
+          "name": "Hunter.io API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "emailVerifier",
+        "email": "={{ $json.email }}"
+      },
+      "id": "hunter-email-verifier",
+      "name": "Hunter.io - Verify Email",
+      "type": "n8n-nodes-base.hunterIo",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "hunterIoApi": {
+          "id": "1",
+          "name": "Hunter.io API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract best email from Hunter.io results\nconst hunterData = $input.first().json;\nconst leadData = $('Webhook Trigger').first().json;\n\nlet bestEmail = null;\nlet emailScore = 0;\n\nif (hunterData.data && hunterData.data.emails) {\n  // Find email with highest confidence\n  for (const emailObj of hunterData.data.emails) {\n    if (emailObj.confidence > emailScore) {\n      bestEmail = emailObj.value;\n      emailScore = emailObj.confidence;\n    }\n  }\n}\n\n// If no email found from Hunter, keep original\nif (!bestEmail && leadData.email) {\n  bestEmail = leadData.email;\n}\n\nreturn {\n  ...leadData,\n  email: bestEmail,\n  emailConfidence: emailScore,\n  enrichmentSource: 'hunter.io',\n  enrichedAt: new Date().toISOString()\n};"
+      },
+      "id": "process-enrichment",
+      "name": "Process Enrichment Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.website }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-website-exists",
+      "name": "Check Website Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [450, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"error\": \"No website provided for enrichment\", \"leadId\": $json.leadId } }}"
+      },
+      "id": "error-no-website",
+      "name": "Error - No Website",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [650, 100]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Website Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Website Exists": {
+      "main": [
+        [
+          {
+            "node": "Hunter.io - Find Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error - No Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hunter.io - Find Email": {
+      "main": [
+        [
+          {
+            "node": "Process Enrichment Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Enrichment Data": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2025-12-12T17:50:00.000Z",
+  "versionId": "1"
+}
