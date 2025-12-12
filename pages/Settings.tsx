@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getSettings, saveSettings } from '../services/storageService';
 import { AppSettings } from '../types';
-import { Save, Sheet, Check, LogOut, Plus, X, Mail, Eye, EyeOff } from 'lucide-react';
+import { Save, Sheet, Check, LogOut, Plus, X, Mail, Eye, EyeOff, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
@@ -143,26 +143,53 @@ export const Settings: React.FC = () => {
 
           {/* N8N Configuration */}
           <section>
-              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">N8N Email Integration</h3>
+              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2 flex items-center gap-2">
+                <Zap className="text-purple-600" size={20} />
+                N8N Automation Webhooks
+              </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">N8N Webhook URL</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                    <Mail size={14} className="text-blue-600" />
+                    Email Sending Webhook
+                  </label>
                   <input
                     type="url"
                     name="n8nWebhookUrl"
                     value={formData.n8nWebhookUrl || ''}
                     onChange={handleChange}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://your-n8n-instance.com/webhook/..."
+                    placeholder="https://your-n8n-instance.com/webhook/send-email"
                   />
-                  <p className="text-xs text-slate-500 mt-1">Your N8N workflow webhook URL for sending emails</p>
+                  <p className="text-xs text-slate-500 mt-1">N8N workflow webhook for sending emails via SMTP</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                    <Zap size={14} className="text-purple-600" />
+                    Lead Enrichment Webhook
+                  </label>
+                  <input
+                    type="url"
+                    name="n8nEnrichmentWebhook"
+                    value={formData.n8nEnrichmentWebhook || ''}
+                    onChange={handleChange}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="https://your-n8n-instance.com/webhook/enrich-lead"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    N8N workflow webhook for automated lead enrichment (email discovery, company info, etc.)
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    💡 Import the workflow from <code className="bg-slate-100 px-1 rounded">n8n-workflows/lead-enrichment-pipeline.json</code>
+                  </p>
                 </div>
               </div>
           </section>
 
           {/* Email Enrichment */}
           <section>
-              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Email Enrichment</h3>
+              <h3 className="text-lg font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Email Enrichment API Keys</h3>
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">Hunter.io API Key</label>
@@ -185,6 +212,9 @@ export const Settings: React.FC = () => {
                   </div>
                   <p className="text-xs text-slate-500 mt-1">
                     Get your API key from <a href="https://hunter.io/api-keys" target="_blank" className="text-blue-500 hover:underline">hunter.io/api-keys</a>
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Used by N8N enrichment workflow to find email addresses
                   </p>
                 </div>
               </div>
