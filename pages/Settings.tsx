@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { getSettings, saveSettings } from '../services/storageService';
 import { AppSettings } from '../types';
-import { Save, Sheet, Check, LogOut, Plus, X } from 'lucide-react', Mail, Eye, EyeOff }
+import { Save, Sheet, Check, LogOut, Plus, X, Mail, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface ExtendedSettings extends AppSettings {
   googleSheetsConnected?: boolean;
   googleSheetId?: string;
-}
   enrichmentService?: 'hunter' | 'apollo' | 'clearbit' | null;
   enrichmentApiKey?: string;
   enrichmentEnabled?: boolean;
   showApiKey?: boolean;
+}
 
 export const Settings: React.FC = () => {
   const { user, logout } = useAuth();
@@ -25,7 +25,7 @@ export const Settings: React.FC = () => {
   });
   const [newOffering, setNewOffering] = useState('');
   const [saved, setSaved] = useState(false);
-    const [showApiKey, setShowApiKey] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -199,86 +199,86 @@ export const Settings: React.FC = () => {
                              </div>
                           </div>
                       </div>
-      
-          {/* Email Enrichment Service Section */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3 flex-1">
-                <div className={`p-2 rounded-lg ${formData.enrichmentEnabled ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-500'}`}>
-                  <Mail size={24} />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-700">Email Enrichment Service</h4>
-                  <p className="text-sm text-slate-500">
-                    {formData.enrichmentEnabled 
-                      ? `Connected to ${formData.enrichmentService || 'Hunter.io'}` 
-                      : 'Automatically find business emails for leads'}
-                  </p>
-                </div>
-              </div>
-              <button 
-                type="button"
-                onClick={() => setFormData(prev => ({
-                  ...prev,
-                  enrichmentEnabled: !prev.enrichmentEnabled
-                }))}
-                className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
-                  formData.enrichmentEnabled 
-                    ? 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50' 
-                    : 'bg-purple-600 text-white hover:bg-purple-700'
-                }`}
-              >
-                {formData.enrichmentEnabled ? 'Disable' : 'Enable'}
-              </button>
-            </div>
-
-            {formData.enrichmentEnabled && (
-              <div className="mt-4 pl-[52px] space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
-                    Service Provider
-                  </label>
-                  <select 
-                    name="enrichmentService"
-                    value={formData.enrichmentService || 'hunter'}
-                    onChange={(e) => setFormData(prev => ({
-                      ...prev,
-                      enrichmentService: e.target.value as 'hunter' | 'apollo' | 'clearbit'
-                    }))}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-purple-500 outline-none text-sm"
-                  >
-                    <option value="hunter">Hunter.io (Recommended)</option>
-                    <option value="apollo">Apollo.io</option>
-                    <option value="clearbit">Clearbit</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
-                    API Key
-                  </label>
-                  <div className="flex gap-2">
-                    <input 
-                      type={showApiKey ? "text" : "password"}
-                      name="enrichmentApiKey"
-                      value={formData.enrichmentApiKey || ''}
-                      onChange={handleChange}
-                      placeholder="Paste your API key here..."
-                      className="flex-1 px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-purple-500 outline-none text-sm"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => setShowApiKey(!showApiKey)}
-                      className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50"
-                    >
-                      {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
                   )}
+              </div>
+      
+              {/* Email Enrichment Service Section */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mt-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className={`p-2 rounded-lg ${formData.enrichmentEnabled ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-500'}`}>
+                      <Mail size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-700">Email Enrichment Service</h4>
+                      <p className="text-sm text-slate-500">
+                        {formData.enrichmentEnabled 
+                          ? `Connected to ${formData.enrichmentService || 'Hunter.io'}` 
+                          : 'Automatically find business emails for leads'}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setFormData(prev => ({
+                      ...prev,
+                      enrichmentEnabled: !prev.enrichmentEnabled
+                    }))}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                      formData.enrichmentEnabled 
+                        ? 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50' 
+                        : 'bg-purple-600 text-white hover:bg-purple-700'
+                    }`}
+                  >
+                    {formData.enrichmentEnabled ? 'Disable' : 'Enable'}
+                  </button>
+                </div>
+
+                {formData.enrichmentEnabled && (
+                  <div className="mt-4 pl-[52px] space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                        Service Provider
+                      </label>
+                      <select 
+                        name="enrichmentService"
+                        value={formData.enrichmentService || 'hunter'}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          enrichmentService: e.target.value as 'hunter' | 'apollo' | 'clearbit'
+                        }))}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-purple-500 outline-none text-sm"
+                      >
+                        <option value="hunter">Hunter.io (Recommended)</option>
+                        <option value="apollo">Apollo.io</option>
+                        <option value="clearbit">Clearbit</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                        API Key
+                      </label>
+                      <div className="flex gap-2">
+                        <input 
+                          type={showApiKey ? "text" : "password"}
+                          name="enrichmentApiKey"
+                          value={formData.enrichmentApiKey || ''}
+                          onChange={handleChange}
+                          placeholder="Paste your API key here..."
+                          className="flex-1 px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-purple-500 outline-none text-sm"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="px-3 py-2 rounded-lg border border-slate-300 hover:bg-slate-50"
+                        >
+                          {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
           </section>
 
