@@ -1,0 +1,18 @@
+--- a/services/emailCampaignService.ts
++++ b/services/emailCampaignService.ts
+@@ -47,6 +47,7 @@ export interface EmailLog {
+   leadId: string;
+   templateId: string;
+   sequenceStepId: string;
++  to: string; // Recipient email address
+   subject: string;
+   body: string;
+   status: 'scheduled' | 'sent' | 'opened' | 'clicked' | 'replied' | 'bounced' | 'failed';
+@@ -565,6 +566,7 @@ class EmailCampaignService {
+         const log = await this.createEmailLog({
+           campaignId,
+           leadId: lead.id,
++          to: lead.email,
+           templateId: step.templateId,
+           sequenceStepId: step.id,
+           subject: this.replaceVariables(template.subject, lead),
