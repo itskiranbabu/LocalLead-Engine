@@ -24,7 +24,10 @@ export const profileRepository = {
       dailyEmailLimit: data.daily_email_limit || 50,
       offerings: data.offerings || [],
       googleSheetsConnected: data.google_sheets_config?.enabled || false,
-      googleSheetId: data.google_sheets_config?.sheet_id || ''
+      googleSheetId: data.google_sheets_config?.sheet_id || '',
+      n8nWebhookUrl: data.n8n_webhook_url || '',
+      n8nEnrichmentWebhook: data.n8n_enrichment_webhook || '',
+      hunterApiKey: data.hunter_api_key || ''
     };
   },
 
@@ -40,6 +43,9 @@ export const profileRepository = {
         enabled: settings.googleSheetsConnected,
         sheet_id: settings.googleSheetId
       },
+      n8n_webhook_url: settings.n8nWebhookUrl || null,
+      n8n_enrichment_webhook: settings.n8nEnrichmentWebhook || null,
+      hunter_api_key: settings.hunterApiKey || null,
       updated_at: new Date().toISOString()
     };
 
