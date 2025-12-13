@@ -48,23 +48,25 @@ class EmailSendingService {
     try {
       const settings = await getSettings();
 
-      // Prepare email data - send directly without nesting
-      // This matches the format your N8N workflow expects
-      const emailData = {
-        to: emailLog.to,
-        subject: emailLog.subject,
-        body: emailLog.body,
-        from_name: settings.userName || 'LocalLead Engine',
-        campaignId: emailLog.campaignId,
-        leadId: emailLog.leadId,
-        emailLogId: emailLog.id,
+      // Match N8N workflow's expected format:
+      // body.toEmail, body.subject, body.message
+      const payload = {
+        body: {
+          toEmail: emailLog.to,
+          subject: emailLog.subject,
+          message: emailLog.body,
+          from_name: settings.userName || 'LocalLead Engine',
+          campaignId: emailLog.campaignId,
+          leadId: emailLog.leadId,
+          emailLogId: emailLog.id,
+        }
       };
 
       console.log('Sending email via N8N:', {
         to: emailLog.to,
         subject: emailLog.subject,
         webhookUrl: webhookUrl.substring(0, 50) + '...',
-        payload: emailData,
+        payload,
       });
 
       // Send to N8N webhook
@@ -73,7 +75,7 @@ class EmailSendingService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(emailData),
+        body: JSON.stringify(payload),
       });
 
       const responseText = await response.text();
@@ -143,17 +145,20 @@ class EmailSendingService {
     try {
       const settings = await getSettings();
 
-      const emailData = {
-        to,
-        subject,
-        body,
-        from_name: settings.userName || 'LocalLead Engine',
+      // Match N8N workflow's expected format
+      const payload = {
+        body: {
+          toEmail: to,
+          subject: subject,
+          message: body,
+          from_name: settings.userName || 'LocalLead Engine',
+        }
       };
 
       console.log('Sending single email via N8N:', { 
         to, 
         subject,
-        payload: emailData,
+        payload,
       });
 
       const response = await fetch(webhookUrl, {
@@ -161,7 +166,7 @@ class EmailSendingService {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(emailData),
+        body: JSON.stringify(payload),
       });
 
       const responseText = await response.text();
