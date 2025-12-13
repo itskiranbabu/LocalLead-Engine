@@ -2,14 +2,6 @@ import { EmailLog } from './emailCampaignService';
 import { getSettings } from './storageService';
 import { BusinessLead } from '../types';
 
-interface EmailSendRequest {
-  to: string;
-  subject: string;
-  body: string;
-  from_name?: string;
-  from_email?: string;
-}
-
 interface EmailSendResponse {
   success: boolean;
   message: string;
@@ -56,19 +48,23 @@ class EmailSendingService {
     try {
       const settings = await getSettings();
 
-      // Prepare email data for N8N workflow
-      const emailData: EmailSendRequest = {
+      // Prepare email data - send directly without nesting
+      // This matches the format your N8N workflow expects
+      const emailData = {
         to: emailLog.to,
         subject: emailLog.subject,
         body: emailLog.body,
         from_name: settings.userName || 'LocalLead Engine',
-        from_email: settings.userName ? `${settings.userName.toLowerCase().replace(/\s+/g, '.')}@yourdomain.com` : undefined,
+        campaignId: emailLog.campaignId,
+        leadId: emailLog.leadId,
+        emailLogId: emailLog.id,
       };
 
       console.log('Sending email via N8N:', {
         to: emailLog.to,
         subject: emailLog.subject,
         webhookUrl: webhookUrl.substring(0, 50) + '...',
+        payload: emailData,
       });
 
       // Send to N8N webhook
@@ -80,12 +76,23 @@ class EmailSendingService {
         body: JSON.stringify(emailData),
       });
 
+      const responseText = await response.text();
+      console.log('N8N Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: responseText,
+      });
+
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`N8N webhook failed: ${response.status} ${response.statusText} - ${errorText}`);
+        throw new Error(`N8N webhook failed: ${response.status} ${response.statusText} - ${responseText}`);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        result = { message: responseText };
+      }
 
       // Update log status to sent
       await this.updateEmailLog(emailLog.id, {
@@ -136,14 +143,18 @@ class EmailSendingService {
     try {
       const settings = await getSettings();
 
-      const emailData: EmailSendRequest = {
+      const emailData = {
         to,
         subject,
         body,
         from_name: settings.userName || 'LocalLead Engine',
       };
 
-      console.log('Sending single email via N8N:', { to, subject });
+      console.log('Sending single email via N8N:', { 
+        to, 
+        subject,
+        payload: emailData,
+      });
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -153,12 +164,23 @@ class EmailSendingService {
         body: JSON.stringify(emailData),
       });
 
+      const responseText = await response.text();
+      console.log('N8N Response:', {
+        status: response.status,
+        body: responseText,
+      });
+
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`N8N webhook failed: ${response.status} - ${errorText}`);
+        throw new Error(`N8N webhook failed: ${response.status} - ${responseText}`);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        result = { message: responseText };
+      }
+
       console.log('Single email sent successfully:', result);
 
       return {
