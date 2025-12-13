@@ -179,22 +179,29 @@ export const LeadsManager: React.FC = () => {
     setEditForm({});
   };
 
-  const handleWhatsAppMessage = (lead: BusinessLead) => {
-    if (!lead.phone) {
-      alert('No phone number available for this lead');
-      return;
-    }
+  const handleWhatsAppMessage = async (lead: BusinessLead) => {
+    try {
+      if (!lead.phone) {
+        alert('No phone number available for this lead');
+        return;
+      }
 
-    // Get user settings for personalization
-    const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
-    const userName = settings.userName || 'Your Name';
-    const companyName = settings.companyName || 'Your Company';
+      // Get user settings properly using async function
+      const settings = await getSettings();
+      const userName = settings.userName || 'Your Name';
+      const companyName = settings.companyName || 'Your Company';
 
-    // Clean phone number (remove spaces, dashes, etc.)
-    const cleanPhone = lead.phone.replace(/[^0-9+]/g, '');
-    
-    // Create WhatsApp message template
-    const message = `Hi ${lead.name} team! 👋
+      // Ensure phone is a string and clean it
+      const phoneStr = String(lead.phone || '');
+      const cleanPhone = phoneStr.replace(/[^0-9+]/g, '');
+      
+      if (!cleanPhone) {
+        alert('Invalid phone number format');
+        return;
+      }
+
+      // Create WhatsApp message template
+      const message = `Hi ${lead.name} team! 👋
 
 I came across your business and was impressed by your ${lead.rating ? lead.rating + '⭐ rating' : 'presence'} in ${lead.city}.
 
@@ -208,9 +215,13 @@ ${companyName}
 
 Learn more: https://tr.ee/itskiranbabu`;
 
-    // Open WhatsApp with pre-filled message
-    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+      // Open WhatsApp with pre-filled message
+      const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+    } catch (error) {
+      console.error('WhatsApp error:', error);
+      alert('Failed to open WhatsApp. Please check the phone number.');
+    }
   };
 
   const exportToCSV = () => {
