@@ -1,0 +1,97 @@
+--- a/pages/EmailCampaigns.tsx
++++ b/pages/EmailCampaigns.tsx
+@@ -1,6 +1,7 @@
+ import React, { useEffect, useState } from 'react';
+ import { emailCampaignService, EmailCampaign, EmailTemplate, EmailSequence } from '../services/emailCampaignService';
++import { emailSendingService } from '../services/emailSendingService';
+ import { getLeads } from '../services/storageService';
+ import { BusinessLead } from '../types';
+ import { Mail, Plus, Play, Pause, Trash2, Eye, BarChart3, Send, Clock, CheckCircle, XCircle, MousePointerClick, Reply, AlertCircle, Loader2 } from 'lucide-react';
+ 
+@@ -11,6 +12,7 @@ export const EmailCampaigns: React.FC = () => {
+   const [sequences, setSequences] = useState<EmailSequence[]>([]);
+   const [leads, setLeads] = useState<BusinessLead[]>([]);
+   const [loading, setLoading] = useState(true);
++  const [sending, setSending] = useState(false);
+   
+   const [showCreateModal, setShowCreateModal] = useState(false);
+   const [showTemplateModal, setShowTemplateModal] = useState(false);
+@@ -73,11 +75,68 @@ export const EmailCampaigns: React.FC = () => {
+   };
+ 
+   const handleStartCampaign = async (campaignId: string) => {
+-    await emailCampaignService.updateCampaign(campaignId, {
+-      status: 'active',
+-      startDate: new Date().toISOString(),
+-    });
+-    loadData();
+-    alert('Campaign started! Emails will be sent according to the schedule.');
++    try {
++      setSending(true);
++
++      // Check if N8N is configured
++      const n8nStatus = await emailSendingService.getN8NStatus();
++      
++      if (!n8nStatus.configured) {
++        alert('⚠️ N8N webhook URL not configured!\\n\\nPlease configure your N8N webhook URL in Settings to send emails.\\n\\nFor now, the campaign will be marked as active but emails won\\'t be sent until N8N is configured.');
++        
++        // Still mark as active so user can configure later
++        await emailCampaignService.updateCampaign(campaignId, {
++          status: 'active',
++          startDate: new Date().toISOString(),
++        });
++        
++        loadData();
++        return;
++      }
++
++      // Update campaign status to active
++      await emailCampaignService.updateCampaign(campaignId, {
++        status: 'active',
++        startDate: new Date().toISOString(),
++      });
++
++      // Process and send scheduled emails
++      console.log('Processing scheduled emails for campaign:', campaignId);
++      await emailSendingService.processScheduledEmails();
++
++      // Reload data to show updated stats
++      await loadData();
++
++      // Get updated campaign stats
++      const updatedCampaign = await emailCampaignService.getCampaign(campaignId);
++      const campaignLogs = await emailSendingService.getEmailLogs(campaignId);
++      
++      // Update campaign stats based on email logs
++      const stats = {
++        sent: campaignLogs.filter(l => 
++          l.status === 'sent' || 
++          l.status === 'opened' || 
++          l.status === 'clicked' || 
++          l.status === 'replied'
++        ).length,
++        opened: campaignLogs.filter(l => 
++          l.status === 'opened' || 
++          l.status === 'clicked' || 
++          l.status === 'replied'
++        ).length,
++        clicked: campaignLogs.filter(l => 
++          l.status === 'clicked' || 
++          l.status === 'replied'
++        ).length,
++        replied: campaignLogs.filter(l => l.status === 'replied').length,
++        bounced: campaignLogs.filter(l => l.status === 'bounced').length,
++      };
++
++      await emailCampaignService.updateCampaign(campaignId, { stats });
++      
++      await loadData();
++
++      alert(`✅ Campaign started!\\n\\n${stats.sent} emails sent successfully.\\n\\nEmails will continue to be sent according to the sequence schedule.`);
++    } catch (error) {
++      console.error('Failed to start campaign:', error);
++      alert('❌ Failed to start campaign. Please check console for details.');
++    } finally {
++      setSending(false);
++    }
+   };
