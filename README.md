@@ -1,452 +1,463 @@
 # 🚀 LocalLead Engine
 
-**Production-ready SaaS platform for local business lead generation and automated outreach.**
+**Your Complete Lead Generation & Outreach Automation Platform**
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/itskiranbabu/LocalLead-Engine)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
----
-
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [Quick Start](#-quick-start)
-- [Configuration](#-configuration)
-- [Deployment](#-deployment)
-- [Usage Guide](#-usage-guide)
-- [API Documentation](#-api-documentation)
-- [Troubleshooting](#-troubleshooting)
-- [Contributing](#-contributing)
+Generate local business leads, enrich with contact information, and automate personalized outreach campaigns - all in one place!
 
 ---
 
-## ✨ Features
+## ✨ **What is LocalLead Engine?**
 
-### Core Features
-- 🔍 **Lead Discovery**: Search and discover local businesses using Google Places API
-- 📊 **Lead Management**: Organize, tag, and track leads with custom fields
-- ✉️ **Email Campaigns**: Send personalized cold emails at scale
-- 📝 **Template System**: Create reusable email templates with variables
-- 📈 **Analytics Dashboard**: Track open rates, responses, and conversions
-- 🤖 **AI-Powered**: Gemini AI for content generation and personalization
+LocalLead Engine is a powerful lead generation tool that helps you:
+- 🔍 **Find** local businesses using Google Places API
+- 📧 **Enrich** leads with email addresses (works WITHOUT website!)
+- 💬 **Contact** via automated email campaigns or WhatsApp
+- 📊 **Track** engagement with detailed analytics
 
-### Advanced Features (New!)
-- 🎯 **AI Lead Scoring**: Automatically score leads based on multiple factors
-- 💬 **Sentiment Analysis**: Analyze email replies with AI
-- 🔄 **Follow-up Sequences**: Auto-generate multi-step email sequences
-- 📧 **Hyper-Personalization**: AI-powered email customization
-- 📊 **Deep Research**: AI-driven lead enrichment and insights
+Perfect for digital marketers, agencies, freelancers, and sales teams targeting local businesses.
 
 ---
 
-## 🛠️ Tech Stack
+## 🎯 **The Complete Journey (5 Steps)**
 
-- **Frontend**: React 19 + TypeScript + Vite
-- **Backend**: Supabase (PostgreSQL + Edge Functions)
-- **Authentication**: Supabase Auth
-- **Email**: Resend API
-- **AI**: Google Gemini Pro
-- **Deployment**: Vercel
-- **Styling**: Tailwind CSS + Lucide Icons
+```
+Login → Settings → Search Leads → Enrich → Outreach → Track Results
+  ↓         ↓           ↓            ↓         ↓            ↓
+30sec    2min        2min         1min      3min      Ongoing
+```
+
+**Total Time to First Campaign: ~9 minutes!**
 
 ---
 
-## 🚀 Quick Start
+## 🚀 **Quick Start Guide**
 
-### Prerequisites
+### **Step 1: Login & Setup (2 minutes)**
+1. Login to the app
+2. Go to **Settings** (sidebar)
+3. Fill in your details:
+   - Your Name
+   - Company Name
+   - Email
+   - Phone
+4. Click **Save**
 
-- Node.js 18+ and npm
-- Supabase account
-- Resend account (for email sending)
-- Google Cloud account (for Gemini AI)
+**⚠️ IMPORTANT:** Do this FIRST! Your info is used in all outreach messages.
 
-### 1. Clone the Repository
+---
+
+### **Step 2: Search for Leads (2 minutes)**
+1. Go to **Leads Manager**
+2. Click **Search Leads**
+3. Enter:
+   - **Query:** "gyms" or "restaurants" or "salons"
+   - **Location:** "New York" or "Mumbai" or "London"
+   - **Radius:** 5000 (meters)
+4. Click **Search**
+5. Get 10-20 leads instantly!
+
+**What you get:**
+- Business name
+- Address
+- Phone number
+- Rating
+- Category
+- Website (if available)
+
+---
+
+### **Step 3: Enrich Leads (1 minute)**
+1. Click the purple sparkle icon (✨) next to any lead
+2. Wait 2-3 seconds
+3. See email suggestions appear
+4. Click the best email to select it
+5. Lead is now enriched! ✅
+
+**Works with OR without website!**
+- **With website:** Uses domain (info@business.com)
+- **Without website:** Generates from business name (info@businessname.com, contact@businessname.in)
+
+**Bulk Enrichment:**
+- Select multiple leads
+- Click **Enrich Selected**
+- All leads enriched at once!
+
+---
+
+### **Step 4: Choose Your Outreach Method**
+
+You have **3 options:**
+
+#### **Option A: Email Campaigns (Automated)** 📧
+**Best for:** 10+ leads, automated follow-ups
+
+1. Go to **Email Campaigns**
+2. Click **Create Campaign**
+3. Fill in:
+   - Campaign Name: "Gym Outreach - Jan 2025"
+   - Sequence: Choose 3-Step, 4-Step, or 5-Step
+   - Select Leads: Check boxes for leads
+4. Click **Create Campaign**
+5. Click **Start Campaign**
+6. Done! Emails sent automatically with follow-ups
+
+**What happens:**
+- **Day 1:** First email sent
+- **Day 3:** Follow-up #1 (if no reply)
+- **Day 7:** Follow-up #2 (if no reply)
+- **Day 14+:** Additional follow-ups (5-step sequence)
+
+**Track Results:**
+- Sent, Opened, Clicked, Replied, Bounced
+- Open rates, Click rates, Reply rates
+- Detailed analytics dashboard
+
+---
+
+#### **Option B: WhatsApp Messages (Manual)** 💬
+**Best for:** Quick responses, local businesses
+
+1. Go to **Leads Manager**
+2. Find leads with phone numbers (no email)
+3. Click green WhatsApp icon (💬)
+4. WhatsApp opens with pre-filled message
+5. Edit if needed and send
+6. Wait for response!
+
+**Message Template:**
+```
+Hi [Business Name] team! 👋
+
+I'm [Your Name] from [Your Company]. I noticed your 
+business and wanted to reach out about [service].
+
+Would love to chat! When's a good time?
+
+Best regards,
+[Your Name]
+```
+
+---
+
+#### **Option C: Manual Email (Personal)** ✉️
+**Best for:** VIP leads, highly personalized outreach
+
+1. Go to **Email Campaigns** → **View Templates**
+2. Copy a template
+3. Open your Gmail/Outlook
+4. Paste and customize
+5. Send manually
+
+---
+
+### **Step 5: Track & Optimize**
+
+**For Email Campaigns:**
+1. Go to **Email Campaigns**
+2. Click **View Analytics** on any campaign
+3. See metrics:
+   - **Sent:** Total emails sent
+   - **Opened:** 20-30% is good
+   - **Clicked:** 5-10% is good
+   - **Replied:** 2-5% is good
+   - **Bounced:** <5% is good
+
+**For WhatsApp:**
+- Check WhatsApp for responses
+- Respond within 1 hour for best results
+
+**Follow Up:**
+- Respond to replies within 24 hours
+- Offer value (free consultation, demo)
+- Book meetings/calls
+- Close deals!
+
+---
+
+## 📊 **Features**
+
+### **Lead Generation**
+- ✅ Google Places API integration
+- ✅ Search by category, keyword, or location
+- ✅ Customizable search radius
+- ✅ 10-20 leads per search
+- ✅ Business name, address, phone, rating, category
+
+### **Email Enrichment**
+- ✅ Works WITH or WITHOUT website
+- ✅ Multiple email pattern generation
+- ✅ Domain-based emails (info@business.com)
+- ✅ Business name-based emails (contact@businessname.in)
+- ✅ Confidence scores
+- ✅ Alternative email suggestions
+- ✅ Bulk enrichment support
+
+### **Email Campaigns**
+- ✅ Pre-built email sequences (3-step, 4-step, 5-step)
+- ✅ Professional email templates
+- ✅ Automated follow-ups
+- ✅ Campaign scheduling
+- ✅ Lead selection and filtering
+- ✅ Campaign analytics dashboard
+- ✅ Open/Click/Reply tracking
+
+### **WhatsApp Integration**
+- ✅ One-click WhatsApp messaging
+- ✅ Pre-filled personalized messages
+- ✅ Uses your Settings (name, company)
+- ✅ Works for leads without email
+
+### **Analytics & Tracking**
+- ✅ Campaign performance metrics
+- ✅ Open rates, Click rates, Reply rates
+- ✅ Bounce rate monitoring
+- ✅ Lead engagement tracking
+- ✅ Conversion analytics
+
+---
+
+## 🎯 **Use Cases**
+
+### **Use Case 1: Digital Marketing Agency**
+**Goal:** Get 10 new restaurant clients
+
+**Workflow:**
+1. Search "restaurants in Chicago" (20 leads)
+2. Enrich all leads
+3. Create "Restaurant Outreach" campaign
+4. Use 3-Step Professional sequence
+5. Launch and monitor
+6. **Result:** 2-3 meetings booked in 2 weeks
+
+---
+
+### **Use Case 2: Freelance Web Designer**
+**Goal:** Quick responses from local gyms
+
+**Workflow:**
+1. Search "gyms near me" (15 leads)
+2. Filter leads with phone numbers
+3. Send WhatsApp messages to 10 gyms
+4. Respond within 1 hour
+5. **Result:** 3-5 conversations started same day
+
+---
+
+### **Use Case 3: SaaS Startup**
+**Goal:** Reach 100 businesses
+
+**Workflow:**
+1. Multiple searches (gyms, salons, clinics)
+2. Collect 100+ leads
+3. Bulk enrich all
+4. Create 3 campaigns by category
+5. Use 5-Step Aggressive sequence
+6. Monitor for 3 weeks
+7. **Result:** 10-15 qualified leads
+
+---
+
+## 📈 **Expected Results**
+
+### **Conservative Estimates:**
+```
+100 leads searched
+→ 80 enriched (80%)
+→ 60 delivered (75%)
+→ 15 opened (25%)
+→ 3 replied (5%)
+→ 1 meeting booked
+```
+
+### **Optimistic Estimates:**
+```
+100 leads searched
+→ 90 enriched (90%)
+→ 85 delivered (94%)
+→ 30 opened (35%)
+→ 8 replied (10%)
+→ 3 meetings booked
+```
+
+**Reality:** Results vary by industry, but quality > quantity always!
+
+---
+
+## 💡 **Best Practices**
+
+### **Lead Generation**
+✅ Search specific categories ("gyms" not "fitness")
+✅ Use realistic radius (5000m = 3 miles)
+✅ Search multiple locations
+✅ Verify data before outreach
+
+### **Enrichment**
+✅ Enrich ALL leads before campaigns
+✅ Review email suggestions carefully
+✅ Pick most professional-looking email
+✅ Keep alternatives for backup
+
+### **Email Campaigns**
+✅ Start with 3-Step sequence (less aggressive)
+✅ Test with 10 leads first
+✅ Monitor daily for first week
+✅ Respond to replies within 24 hours
+✅ Personalize campaign names
+
+### **WhatsApp**
+✅ Send during business hours (9am-6pm)
+✅ Personalize each message
+✅ Respond quickly (within 1 hour)
+✅ Be friendly and professional
+✅ Offer clear value
+
+---
+
+## 🔧 **Tech Stack**
+
+- **Frontend:** React + TypeScript
+- **Styling:** Tailwind CSS
+- **Icons:** Lucide React
+- **Storage:** LocalStorage (client-side)
+- **APIs:** Google Places API
+- **Build:** Vite
+
+---
+
+## 📚 **Documentation**
+
+### **Quick References:**
+- 📖 [**Complete User Guide**](docs/USER_GUIDE.md) - Detailed step-by-step instructions
+- ⚡ [**Quick Start Flow**](docs/QUICK_START_FLOW.md) - Visual workflow guide
+- 🔧 [**Fixes Summary**](docs/FIXES_SUMMARY.md) - Technical fixes applied
+- 💬 [**WhatsApp Feature**](docs/WHATSAPP_FEATURE.md) - WhatsApp integration guide
+
+### **Feature Guides:**
+- 📧 [**Email Campaigns**](docs/EMAIL_CAMPAIGNS_GUIDE.md) - Campaign setup and management
+- ✨ [**Enrichment Options**](docs/ENRICHMENT_OPTIONS.md) - Email enrichment strategies
+- 🧪 [**Testing Guide**](docs/END_TO_END_TESTING_GUIDE.md) - End-to-end testing
+
+---
+
+## 🚀 **Getting Started**
+
+### **Installation**
 
 ```bash
+# Clone the repository
 git clone https://github.com/itskiranbabu/LocalLead-Engine.git
+
+# Navigate to project directory
 cd LocalLead-Engine
-```
 
-### 2. Install Dependencies
-
-```bash
+# Install dependencies
 npm install
-```
 
-### 3. Set Up Environment Variables
-
-Create a `.env.local` file:
-
-```env
-# Supabase
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# Gemini AI
-VITE_GEMINI_API_KEY=your_gemini_api_key
-
-# App Configuration
-VITE_APP_URL=http://localhost:5173
-```
-
-### 4. Set Up Supabase
-
-#### A. Create Tables
-
-Run this SQL in your Supabase SQL Editor:
-
-```sql
--- Profiles table
-CREATE TABLE profiles (
-  id UUID REFERENCES auth.users PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  full_name TEXT,
-  company_name TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Leads table
-CREATE TABLE leads (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users NOT NULL,
-  name TEXT NOT NULL,
-  email TEXT,
-  phone TEXT,
-  website TEXT,
-  city TEXT,
-  category TEXT,
-  business_type TEXT,
-  rating NUMERIC,
-  review_count INTEGER,
-  status TEXT DEFAULT 'new',
-  campaign_id UUID,
-  last_contact_date TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Email templates table
-CREATE TABLE email_templates (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users NOT NULL,
-  name TEXT NOT NULL,
-  subject TEXT NOT NULL,
-  body TEXT NOT NULL,
-  category TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Campaigns table
-CREATE TABLE campaigns (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users NOT NULL,
-  name TEXT NOT NULL,
-  description TEXT,
-  status TEXT DEFAULT 'draft',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Outreach logs table
-CREATE TABLE outreach_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users NOT NULL,
-  lead_id UUID REFERENCES leads,
-  campaign_id UUID REFERENCES campaigns,
-  channel TEXT NOT NULL,
-  status TEXT NOT NULL,
-  subject TEXT,
-  body TEXT,
-  provider_id TEXT,
-  error_message TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- Enable Row Level Security
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE leads ENABLE ROW LEVEL SECURITY;
-ALTER TABLE email_templates ENABLE ROW LEVEL SECURITY;
-ALTER TABLE campaigns ENABLE ROW LEVEL SECURITY;
-ALTER TABLE outreach_logs ENABLE ROW LEVEL SECURITY;
-
--- Create policies
-CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Users can view own leads" ON leads FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own leads" ON leads FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own leads" ON leads FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own leads" ON leads FOR DELETE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own templates" ON email_templates FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own templates" ON email_templates FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own templates" ON email_templates FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own templates" ON email_templates FOR DELETE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own campaigns" ON campaigns FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own campaigns" ON campaigns FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own campaigns" ON campaigns FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY "Users can delete own campaigns" ON campaigns FOR DELETE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can view own logs" ON outreach_logs FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert own logs" ON outreach_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
-```
-
-#### B. Deploy Edge Function
-
-```bash
-# Install Supabase CLI
-npm install -g supabase
-
-# Login to Supabase
-supabase login
-
-# Link your project
-supabase link --project-ref your-project-ref
-
-# Set secrets
-supabase secrets set RESEND_API_KEY=your_resend_api_key
-
-# Deploy function
-supabase functions deploy send-email
-```
-
-### 5. Run Development Server
-
-```bash
+# Start development server
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173)
+### **Environment Setup**
 
----
-
-## ⚙️ Configuration
-
-### Resend Email Setup
-
-1. Sign up at [resend.com](https://resend.com)
-2. Verify your domain
-3. Get your API key
-4. Add to Supabase secrets:
-   ```bash
-   supabase secrets set RESEND_API_KEY=re_xxxxx
-   ```
-
-### Google Gemini AI Setup
-
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Create an API key
-3. Add to `.env.local`:
-   ```env
-   VITE_GEMINI_API_KEY=your_key_here
-   ```
-
----
-
-## 🚀 Deployment
-
-### Deploy to Vercel
-
-1. **Connect Repository**
-   ```bash
-   vercel
-   ```
-
-2. **Set Environment Variables** in Vercel Dashboard:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-   - `VITE_GEMINI_API_KEY`
-   - `VITE_APP_URL`
-
-3. **Deploy**
-   ```bash
-   vercel --prod
-   ```
-
-### Post-Deployment Checklist
-
-- ✅ Test authentication
-- ✅ Test lead search
-- ✅ Test email sending
-- ✅ Verify CORS settings
-- ✅ Check error logging
-- ✅ Monitor performance
-
----
-
-## 📖 Usage Guide
-
-### 1. Create Your Profile
-
-1. Sign up with email/password
-2. Complete your profile (name, company)
-3. Configure email settings
-
-### 2. Search for Leads
-
-1. Go to **Lead Search**
-2. Enter city and business category
-3. Review results
-4. Save leads to your database
-
-### 3. Create Email Templates
-
-1. Go to **Templates**
-2. Click **"New Template"**
-3. Use variables: `{{contact_name}}`, `{{business_name}}`, `{{city}}`
-4. Save template
-
-### 4. Launch Campaign
-
-1. Go to **Outreach**
-2. Select leads
-3. Choose template
-4. Customize if needed
-5. Send emails
-
-### 5. Track Performance
-
-1. Go to **Dashboard**
-2. View analytics
-3. Monitor responses
-4. Adjust strategy
-
----
-
-## 🔧 Troubleshooting
-
-### Email Sending Fails
-
-**Problem**: CORS error or email not sending
-
-**Solution**:
-1. Check Resend API key in Supabase secrets
-2. Verify domain in Resend dashboard
-3. Check Edge Function logs:
-   ```bash
-   supabase functions logs send-email
-   ```
-
-### Authentication Issues
-
-**Problem**: Can't log in
-
-**Solution**:
-1. Check Supabase URL and keys
-2. Verify email confirmation settings
-3. Check browser console for errors
-
-### AI Features Not Working
-
-**Problem**: Gemini API errors
-
-**Solution**:
-1. Verify API key is correct
-2. Check API quota limits
-3. Review error messages in console
-
----
-
-## 📊 API Documentation
-
-### Edge Function: send-email
-
-**Endpoint**: `https://your-project.supabase.co/functions/v1/send-email`
-
-**Method**: POST
-
-**Headers**:
-```json
-{
-  "Authorization": "Bearer YOUR_SUPABASE_ANON_KEY",
-  "Content-Type": "application/json"
-}
+Create a `.env` file:
+```env
+VITE_GOOGLE_PLACES_API_KEY=your_api_key_here
 ```
 
-**Body**:
-```json
-{
-  "leadIds": ["uuid1", "uuid2"],
-  "templateId": "uuid",
-  "campaignId": "uuid",
-  "customSubject": "Optional custom subject",
-  "customBody": "Optional custom body"
-}
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "total": 2,
-  "sent": 2,
-  "failed": 0,
-  "results": [
-    {
-      "id": "uuid1",
-      "email": "contact@business.com",
-      "status": "sent",
-      "provider_id": "resend_id"
-    }
-  ]
-}
-```
+Get your Google Places API key from [Google Cloud Console](https://console.cloud.google.com/).
 
 ---
 
-## 🤝 Contributing
+## 📊 **Success Metrics**
 
-Contributions are welcome! Please follow these steps:
+### **Good Performance:**
+- Open Rate: 20-30%
+- Click Rate: 5-10%
+- Reply Rate: 2-5%
+- Bounce Rate: <5%
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### **Excellent Performance:**
+- Open Rate: 30-40%
+- Click Rate: 10-15%
+- Reply Rate: 5-10%
+- Bounce Rate: <2%
 
 ---
 
-## 🙏 Acknowledgments
+## 🎯 **Quick Start Checklist**
 
-- [Supabase](https://supabase.com) for backend infrastructure
-- [Resend](https://resend.com) for email delivery
-- [Google Gemini](https://ai.google.dev) for AI capabilities
-- [Vercel](https://vercel.com) for hosting
+### **First 30 Minutes:**
+- [ ] Login to app
+- [ ] Configure Settings
+- [ ] Search 10 leads
+- [ ] Enrich all leads
+- [ ] Review email suggestions
 
----
+### **First Hour:**
+- [ ] Create first campaign
+- [ ] Select 3-Step sequence
+- [ ] Add all 10 leads
+- [ ] Launch campaign
+- [ ] Check analytics
 
-## 📞 Support
-
-- **Documentation**: [View Enhancement Plan](ENHANCEMENT_PLAN.md)
-- **Issues**: [GitHub Issues](https://github.com/itskiranbabu/LocalLead-Engine/issues)
-- **Email**: support@locallead.com
-
----
-
-## 🗺️ Roadmap
-
-See [ENHANCEMENT_PLAN.md](ENHANCEMENT_PLAN.md) for detailed roadmap.
-
-**Coming Soon**:
-- ✅ AI Lead Scoring (DONE)
-- ✅ Sentiment Analysis (DONE)
-- 🔄 Multi-channel outreach (WhatsApp, LinkedIn)
-- 🔄 Advanced analytics dashboard
-- 🔄 Team collaboration features
-- 🔄 Mobile app
+### **First Week:**
+- [ ] Create 2-3 campaigns
+- [ ] Test different sequences
+- [ ] Track metrics
+- [ ] Optimize based on results
+- [ ] Book first meeting!
 
 ---
 
-**Built with ❤️ by [Kiran Babu](https://github.com/itskiranbabu)**
+## 🔥 **What's New**
 
-**Star ⭐ this repo if you find it helpful!**
+### **Latest Updates:**
+- ✅ Email enrichment works WITHOUT website
+- ✅ WhatsApp integration with personalized messages
+- ✅ Email campaigns with automated sequences
+- ✅ Comprehensive analytics dashboard
+- ✅ Bulk enrichment support
+- ✅ Professional email templates
+- ✅ Campaign scheduling and management
+
+---
+
+## 🤝 **Contributing**
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+---
+
+## 📄 **License**
+
+This project is licensed under the MIT License.
+
+---
+
+## 📞 **Support**
+
+Need help? Check out:
+1. [Complete User Guide](docs/USER_GUIDE.md)
+2. [Quick Start Flow](docs/QUICK_START_FLOW.md)
+3. [Troubleshooting Section](docs/USER_GUIDE.md#troubleshooting)
+
+---
+
+## 🎉 **Ready to Generate Leads?**
+
+**Start your first campaign in 9 minutes:**
+
+1. **Login** (30 sec)
+2. **Settings** (2 min)
+3. **Search Leads** (2 min)
+4. **Enrich** (1 min)
+5. **Create Campaign** (3 min)
+6. **Launch!** (30 sec)
+
+**Remember:** Consistency beats perfection. Start small, learn fast, scale smart!
+
+---
+
+**Built with ❤️ for lead generation professionals**
+
+🚀 **[Get Started Now!](#quick-start-guide)**
