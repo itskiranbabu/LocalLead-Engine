@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { emailCampaignService, EmailCampaign, EmailTemplate, EmailSequence } from '../services/emailCampaignService';
+import { emailSendingService } from '../services/emailSendingService';
 import { getLeads } from '../services/storageService';
 import { BusinessLead } from '../types';
 import { Mail, Plus, Play, Pause, Trash2, Eye, BarChart3, Send, Clock, CheckCircle, XCircle, MousePointerClick, Reply, AlertCircle, Loader2 } from 'lucide-react';
@@ -10,6 +11,7 @@ export const EmailCampaigns: React.FC = () => {
   const [sequences, setSequences] = useState<EmailSequence[]>([]);
   const [leads, setLeads] = useState<BusinessLead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -72,12 +74,74 @@ export const EmailCampaigns: React.FC = () => {
   };
 
   const handleStartCampaign = async (campaignId: string) => {
-    await emailCampaignService.updateCampaign(campaignId, {
-      status: 'active',
-      startDate: new Date().toISOString(),
-    });
-    loadData();
-    alert('Campaign started! Emails will be sent according to the schedule.');
+    try {
+      setSending(true);
+
+      // Check if N8N is configured
+      const n8nStatus = await emailSendingService.getN8NStatus();
+      
+      if (!n8nStatus.configured) {
+        alert('⚠️ N8N webhook URL not configured!\n\nPlease configure your N8N webhook URL in Settings to send emails.\n\nFor now, the campaign will be marked as active but emails won\'t be sent until N8N is configured.');
+        
+        // Still mark as active so user can configure later
+        await emailCampaignService.updateCampaign(campaignId, {
+          status: 'active',
+          startDate: new Date().toISOString(),
+        });
+        
+        loadData();
+        return;
+      }
+
+      // Update campaign status to active
+      await emailCampaignService.updateCampaign(campaignId, {
+        status: 'active',
+        startDate: new Date().toISOString(),
+      });
+
+      // Process and send scheduled emails
+      console.log('Processing scheduled emails for campaign:', campaignId);
+      await emailSendingService.processScheduledEmails();
+
+      // Reload data to show updated stats
+      await loadData();
+
+      // Get updated campaign stats
+      const updatedCampaign = await emailCampaignService.getCampaign(campaignId);
+      const campaignLogs = await emailSendingService.getEmailLogs(campaignId);
+      
+      // Update campaign stats based on email logs
+      const stats = {
+        sent: campaignLogs.filter(l => 
+          l.status === 'sent' || 
+          l.status === 'opened' || 
+          l.status === 'clicked' || 
+          l.status === 'replied'
+        ).length,
+        opened: campaignLogs.filter(l => 
+          l.status === 'opened' || 
+          l.status === 'clicked' || 
+          l.status === 'replied'
+        ).length,
+        clicked: campaignLogs.filter(l => 
+          l.status === 'clicked' || 
+          l.status === 'replied'
+        ).length,
+        replied: campaignLogs.filter(l => l.status === 'replied').length,
+        bounced: campaignLogs.filter(l => l.status === 'bounced').length,
+      };
+
+      await emailCampaignService.updateCampaign(campaignId, { stats });
+      
+      await loadData();
+
+      alert(`✅ Campaign started!\n\n${stats.sent} emails sent successfully.\n\nEmails will continue to be sent according to the sequence schedule.`);
+    } catch (error) {
+      console.error('Failed to start campaign:', error);
+      alert('❌ Failed to start campaign. Please check console for details.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const handlePauseCampaign = async (campaignId: string) => {
@@ -136,33 +200,33 @@ export const EmailCampaigns: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 size={48} className="animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-slate-600">Loading email campaigns...</p>
+      <div className=\"p-8 flex items-center justify-center min-h-screen\">
+        <div className=\"text-center\">
+          <Loader2 size={48} className=\"animate-spin text-blue-600 mx-auto mb-4\" />
+          <p className=\"text-slate-600\">Loading email campaigns...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-6">
+    <div className=\"p-8\">
+      <div className=\"flex justify-between items-center mb-6\">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Email Campaigns</h2>
-          <p className="text-slate-600 mt-1">Automate your email outreach with sequences</p>
+          <h2 className=\"text-2xl font-bold text-slate-800\">Email Campaigns</h2>
+          <p className=\"text-slate-600 mt-1\">Automate your email outreach with sequences</p>
         </div>
-        <div className="flex gap-3">
+        <div className=\"flex gap-3\">
           <button
             onClick={() => setShowTemplateModal(true)}
-            className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            className=\"bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors\"
           >
             <Eye size={18} />
             View Templates
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+            className=\"bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors\"
           >
             <Plus size={18} />
             Create Campaign
@@ -171,15 +235,15 @@ export const EmailCampaigns: React.FC = () => {
       </div>
 
       {/* Campaigns List */}
-      <div className="grid gap-4">
+      <div className=\"grid gap-4\">
         {campaigns.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center">
-            <Mail size={48} className="mx-auto text-slate-300 mb-4" />
-            <h3 className="text-lg font-semibold text-slate-800 mb-2">No campaigns yet</h3>
-            <p className="text-slate-600 mb-4">Create your first email campaign to start automating outreach</p>
+          <div className=\"bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center\">
+            <Mail size={48} className=\"mx-auto text-slate-300 mb-4\" />
+            <h3 className=\"text-lg font-semibold text-slate-800 mb-2\">No campaigns yet</h3>
+            <p className=\"text-slate-600 mb-4\">Create your first email campaign to start automating outreach</p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg inline-flex items-center gap-2 transition-colors"
+              className=\"bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg inline-flex items-center gap-2 transition-colors\"
             >
               <Plus size={18} />
               Create Campaign
@@ -187,11 +251,11 @@ export const EmailCampaigns: React.FC = () => {
           </div>
         ) : (
           campaigns.map(campaign => (
-            <div key={campaign.id} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-              <div className="flex justify-between items-start mb-4">
+            <div key={campaign.id} className=\"bg-white rounded-xl shadow-sm border border-slate-200 p-6\">
+              <div className=\"flex justify-between items-start mb-4\">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-800">{campaign.name}</h3>
-                  <p className="text-sm text-slate-600 mt-1">
+                  <h3 className=\"text-lg font-semibold text-slate-800\">{campaign.name}</h3>
+                  <p className=\"text-sm text-slate-600 mt-1\">
                     Sequence: {getSequenceName(campaign.sequenceId)} • {campaign.leadIds.length} leads
                   </p>
                 </div>
@@ -201,59 +265,69 @@ export const EmailCampaigns: React.FC = () => {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-5 gap-4 mb-4">
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-1 text-slate-600 mb-1">
+              <div className=\"grid grid-cols-5 gap-4 mb-4\">
+                <div className=\"text-center\">
+                  <div className=\"flex items-center justify-center gap-1 text-slate-600 mb-1\">
                     <Send size={16} />
-                    <span className="text-xs">Sent</span>
+                    <span className=\"text-xs\">Sent</span>
                   </div>
-                  <div className="text-2xl font-bold text-slate-800">{campaign.stats.sent}</div>
+                  <div className=\"text-2xl font-bold text-slate-800\">{campaign.stats.sent}</div>
                 </div>
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
+                <div className=\"text-center\">
+                  <div className=\"flex items-center justify-center gap-1 text-blue-600 mb-1\">
                     <Eye size={16} />
-                    <span className="text-xs">Opened</span>
+                    <span className=\"text-xs\">Opened</span>
                   </div>
-                  <div className="text-2xl font-bold text-blue-600">{campaign.stats.opened}</div>
+                  <div className=\"text-2xl font-bold text-blue-600\">{campaign.stats.opened}</div>
                 </div>
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
+                <div className=\"text-center\">
+                  <div className=\"flex items-center justify-center gap-1 text-green-600 mb-1\">
                     <MousePointerClick size={16} />
-                    <span className="text-xs">Clicked</span>
+                    <span className=\"text-xs\">Clicked</span>
                   </div>
-                  <div className="text-2xl font-bold text-green-600">{campaign.stats.clicked}</div>
+                  <div className=\"text-2xl font-bold text-green-600\">{campaign.stats.clicked}</div>
                 </div>
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-1 text-purple-600 mb-1">
+                <div className=\"text-center\">
+                  <div className=\"flex items-center justify-center gap-1 text-purple-600 mb-1\">
                     <Reply size={16} />
-                    <span className="text-xs">Replied</span>
+                    <span className=\"text-xs\">Replied</span>
                   </div>
-                  <div className="text-2xl font-bold text-purple-600">{campaign.stats.replied}</div>
+                  <div className=\"text-2xl font-bold text-purple-600\">{campaign.stats.replied}</div>
                 </div>
-                <div className="text-center">
-                  <div className="flex items-center justify-center gap-1 text-red-600 mb-1">
+                <div className=\"text-center\">
+                  <div className=\"flex items-center justify-center gap-1 text-red-600 mb-1\">
                     <XCircle size={16} />
-                    <span className="text-xs">Bounced</span>
+                    <span className=\"text-xs\">Bounced</span>
                   </div>
-                  <div className="text-2xl font-bold text-red-600">{campaign.stats.bounced}</div>
+                  <div className=\"text-2xl font-bold text-red-600\">{campaign.stats.bounced}</div>
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2">
+              <div className=\"flex gap-2\">
                 {campaign.status === 'draft' && (
                   <button
                     onClick={() => handleStartCampaign(campaign.id)}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                    disabled={sending}
+                    className=\"flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed\"
                   >
-                    <Play size={18} />
-                    Start Campaign
+                    {sending ? (
+                      <>
+                        <Loader2 size={18} className=\"animate-spin\" />
+                        Sending Emails...
+                      </>
+                    ) : (
+                      <>
+                        <Play size={18} />
+                        Start Campaign
+                      </>
+                    )}
                   </button>
                 )}
                 {campaign.status === 'active' && (
                   <button
                     onClick={() => handlePauseCampaign(campaign.id)}
-                    className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                    className=\"flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors\"
                   >
                     <Pause size={18} />
                     Pause Campaign
@@ -261,14 +335,14 @@ export const EmailCampaigns: React.FC = () => {
                 )}
                 <button
                   onClick={() => handleViewAnalytics(campaign)}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                  className=\"flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors\"
                 >
                   <BarChart3 size={18} />
                   View Analytics
                 </button>
                 <button
                   onClick={() => handleDeleteCampaign(campaign.id)}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                  className=\"bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors\"
                 >
                   <Trash2 size={18} />
                 </button>
@@ -280,35 +354,39 @@ export const EmailCampaigns: React.FC = () => {
 
       {/* Create Campaign Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-xl">
-              <h3 className="text-2xl font-bold">Create Email Campaign</h3>
-              <p className="text-blue-100 mt-1">Set up automated email sequences for your leads</p>
+        <div className=\"fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4\">
+          <div className=\"bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto\">
+            <div className=\"p-6 border-b border-slate-200\">
+              <h3 className=\"text-xl font-bold text-slate-800\">Create Email Campaign</h3>
+              <p className=\"text-slate-600 mt-1\">Set up your automated email sequence</p>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className=\"p-6 space-y-6\">
               {/* Campaign Name */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Campaign Name</label>
+                <label className=\"block text-sm font-medium text-slate-700 mb-2\">
+                  Campaign Name
+                </label>
                 <input
-                  type="text"
+                  type=\"text\"
                   value={newCampaign.name}
-                  onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Gym Outreach"
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder=\"e.g., Gym Outreach - January 2025\"
+                  className=\"w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent\"
                 />
               </div>
 
               {/* Email Sequence */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Email Sequence</label>
+                <label className=\"block text-sm font-medium text-slate-700 mb-2\">
+                  Email Sequence
+                </label>
                 <select
                   value={newCampaign.sequenceId}
-                  onChange={(e) => setNewCampaign({ ...newCampaign, sequenceId: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => setNewCampaign(prev => ({ ...prev, sequenceId: e.target.value }))}
+                  className=\"w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent\"
                 >
-                  <option value="">Select a sequence...</option>
+                  <option value=\"\">Select a sequence...</option>
                   {sequences.map(seq => (
                     <option key={seq.id} value={seq.id}>
                       {seq.name} ({seq.steps.length} steps)
@@ -319,73 +397,70 @@ export const EmailCampaigns: React.FC = () => {
 
               {/* Lead Selection */}
               <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-medium text-slate-700">
+                <div className=\"flex justify-between items-center mb-2\">
+                  <label className=\"block text-sm font-medium text-slate-700\">
                     Select Leads ({newCampaign.selectedLeadIds.length} selected)
                   </label>
-                  <div className="flex gap-2">
+                  <div className=\"flex gap-2\">
                     <button
                       onClick={selectAllLeads}
-                      className="text-sm text-blue-600 hover:text-blue-700"
+                      className=\"text-sm text-blue-600 hover:text-blue-700\"
                     >
                       Select All
                     </button>
                     <button
                       onClick={deselectAllLeads}
-                      className="text-sm text-slate-600 hover:text-slate-700"
+                      className=\"text-sm text-slate-600 hover:text-slate-700\"
                     >
                       Deselect All
                     </button>
                   </div>
                 </div>
-
-                <div className="border border-slate-300 rounded-lg max-h-64 overflow-y-auto">
+                <div className=\"border border-slate-300 rounded-lg max-h-64 overflow-y-auto\">
                   {leads.filter(l => l.email).length === 0 ? (
-                    <div className="p-8 text-center text-slate-500">
-                      <AlertCircle size={48} className="mx-auto mb-2 text-slate-300" />
-                      <p>No leads with email addresses found.</p>
-                      <p className="text-sm mt-1">Enrich your leads first to get email addresses.</p>
+                    <div className=\"p-4 text-center text-slate-600\">
+                      No leads with email addresses found. Please enrich your leads first.
                     </div>
                   ) : (
                     leads.filter(l => l.email).map(lead => (
                       <label
                         key={lead.id}
-                        className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-200 last:border-b-0"
+                        className=\"flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 last:border-0\"
                       >
                         <input
-                          type="checkbox"
+                          type=\"checkbox\"
                           checked={newCampaign.selectedLeadIds.includes(lead.id)}
                           onChange={() => toggleLeadSelection(lead.id)}
-                          className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                          className=\"w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500\"
                         />
-                        <div className="flex-1">
-                          <div className="font-medium text-slate-800">{lead.name}</div>
-                          <div className="text-sm text-slate-600">{lead.email}</div>
+                        <div className=\"flex-1\">
+                          <div className=\"font-medium text-slate-800\">{lead.name}</div>
+                          <div className=\"text-sm text-slate-600\">{lead.email}</div>
+                          <div className=\"text-xs text-slate-500\">{lead.category}</div>
                         </div>
-                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                          {lead.category}
-                        </span>
                       </label>
                     ))
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={handleCreateCampaign}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Create Campaign
-                </button>
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
+            <div className=\"p-6 border-t border-slate-200 flex justify-end gap-3\">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewCampaign({ name: '', sequenceId: '', selectedLeadIds: [] });
+                }}
+                className=\"px-4 py-2 text-slate-700 hover:bg-slate-100 rounded-lg transition-colors\"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateCampaign}
+                className=\"px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors\"
+              >
+                Create Campaign
+              </button>
             </div>
           </div>
         </div>
@@ -393,36 +468,38 @@ export const EmailCampaigns: React.FC = () => {
 
       {/* Template Modal */}
       {showTemplateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 rounded-t-xl">
-              <h3 className="text-2xl font-bold">Email Templates</h3>
-              <p className="text-purple-100 mt-1">Pre-built templates for your campaigns</p>
+        <div className=\"fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4\">
+          <div className=\"bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto\">
+            <div className=\"p-6 border-b border-slate-200\">
+              <h3 className=\"text-xl font-bold text-slate-800\">Email Templates</h3>
+              <p className=\"text-slate-600 mt-1\">Pre-built templates for your campaigns</p>
             </div>
 
-            <div className="p-6 space-y-4">
+            <div className=\"p-6 space-y-4\">
               {templates.map(template => (
-                <div key={template.id} className="border border-slate-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
+                <div key={template.id} className=\"border border-slate-200 rounded-lg p-4\">
+                  <div className=\"flex justify-between items-start mb-2\">
                     <div>
-                      <h4 className="font-semibold text-slate-800">{template.name}</h4>
-                      <p className="text-sm text-slate-600 mt-1">Subject: {template.subject}</p>
+                      <h4 className=\"font-semibold text-slate-800\">{template.name}</h4>
+                      <span className=\"text-xs text-slate-500 capitalize\">{template.category.replace('_', ' ')}</span>
                     </div>
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
-                      {template.category}
-                    </span>
                   </div>
-                  <div className="bg-slate-50 rounded p-3 text-sm text-slate-700 whitespace-pre-wrap">
-                    {template.body}
+                  <div className=\"bg-slate-50 rounded p-3 mb-2\">
+                    <div className=\"text-sm font-medium text-slate-700 mb-1\">Subject:</div>
+                    <div className=\"text-sm text-slate-600\">{template.subject}</div>
+                  </div>
+                  <div className=\"bg-slate-50 rounded p-3\">
+                    <div className=\"text-sm font-medium text-slate-700 mb-1\">Body:</div>
+                    <div className=\"text-sm text-slate-600 whitespace-pre-wrap\">{template.body}</div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="p-6 pt-0">
+            <div className=\"p-6 border-t border-slate-200 flex justify-end\">
               <button
                 onClick={() => setShowTemplateModal(false)}
-                className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium transition-colors"
+                className=\"px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors\"
               >
                 Close
               </button>
@@ -432,53 +509,70 @@ export const EmailCampaigns: React.FC = () => {
       )}
 
       {/* Analytics Modal */}
-      {showAnalytics && selectedCampaign && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-green-600 to-teal-600 text-white p-6 rounded-t-xl">
-              <h3 className="text-2xl font-bold">Campaign Analytics</h3>
-              <p className="text-green-100 mt-1">{selectedCampaign.name}</p>
+      {showAnalytics && selectedCampaign && analytics && (
+        <div className=\"fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4\">
+          <div className=\"bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto\">
+            <div className=\"p-6 border-b border-slate-200\">
+              <h3 className=\"text-xl font-bold text-slate-800\">{selectedCampaign.name}</h3>
+              <p className=\"text-slate-600 mt-1\">Campaign Analytics</p>
             </div>
 
-            <div className="p-6">
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <div className="text-sm text-blue-600 mb-1">Open Rate</div>
-                  <div className="text-3xl font-bold text-blue-700">
-                    {selectedCampaign.stats.sent > 0
-                      ? Math.round((selectedCampaign.stats.opened / selectedCampaign.stats.sent) * 100)
-                      : 0}%
-                  </div>
+            <div className=\"p-6\">
+              <div className=\"grid grid-cols-2 md:grid-cols-4 gap-4 mb-6\">
+                <div className=\"bg-blue-50 rounded-lg p-4\">
+                  <div className=\"text-sm text-blue-600 mb-1\">Open Rate</div>
+                  <div className=\"text-2xl font-bold text-blue-700\">{analytics.openRate.toFixed(1)}%</div>
                 </div>
-                <div className="bg-green-50 rounded-lg p-4">
-                  <div className="text-sm text-green-600 mb-1">Click Rate</div>
-                  <div className="text-3xl font-bold text-green-700">
-                    {selectedCampaign.stats.sent > 0
-                      ? Math.round((selectedCampaign.stats.clicked / selectedCampaign.stats.sent) * 100)
-                      : 0}%
-                  </div>
+                <div className=\"bg-green-50 rounded-lg p-4\">
+                  <div className=\"text-sm text-green-600 mb-1\">Click Rate</div>
+                  <div className=\"text-2xl font-bold text-green-700\">{analytics.clickRate.toFixed(1)}%</div>
                 </div>
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <div className="text-sm text-purple-600 mb-1">Reply Rate</div>
-                  <div className="text-3xl font-bold text-purple-700">
-                    {selectedCampaign.stats.sent > 0
-                      ? Math.round((selectedCampaign.stats.replied / selectedCampaign.stats.sent) * 100)
-                      : 0}%
-                  </div>
+                <div className=\"bg-purple-50 rounded-lg p-4\">
+                  <div className=\"text-sm text-purple-600 mb-1\">Reply Rate</div>
+                  <div className=\"text-2xl font-bold text-purple-700\">{analytics.replyRate.toFixed(1)}%</div>
                 </div>
-                <div className="bg-red-50 rounded-lg p-4">
-                  <div className="text-sm text-red-600 mb-1">Bounce Rate</div>
-                  <div className="text-3xl font-bold text-red-700">
-                    {selectedCampaign.stats.sent > 0
-                      ? Math.round((selectedCampaign.stats.bounced / selectedCampaign.stats.sent) * 100)
-                      : 0}%
-                  </div>
+                <div className=\"bg-red-50 rounded-lg p-4\">
+                  <div className=\"text-sm text-red-600 mb-1\">Bounce Rate</div>
+                  <div className=\"text-2xl font-bold text-red-700\">{analytics.bounceRate.toFixed(1)}%</div>
                 </div>
               </div>
 
+              <div className=\"grid grid-cols-2 md:grid-cols-3 gap-4\">
+                <div className=\"border border-slate-200 rounded-lg p-4\">
+                  <div className=\"text-sm text-slate-600 mb-1\">Total Scheduled</div>
+                  <div className=\"text-xl font-bold text-slate-800\">{analytics.totalScheduled}</div>
+                </div>
+                <div className=\"border border-slate-200 rounded-lg p-4\">
+                  <div className=\"text-sm text-slate-600 mb-1\">Sent</div>
+                  <div className=\"text-xl font-bold text-slate-800\">{analytics.sent}</div>
+                </div>
+                <div className=\"border border-slate-200 rounded-lg p-4\">
+                  <div className=\"text-sm text-slate-600 mb-1\">Opened</div>
+                  <div className=\"text-xl font-bold text-blue-600\">{analytics.opened}</div>
+                </div>
+                <div className=\"border border-slate-200 rounded-lg p-4\">
+                  <div className=\"text-sm text-slate-600 mb-1\">Clicked</div>
+                  <div className=\"text-xl font-bold text-green-600\">{analytics.clicked}</div>
+                </div>
+                <div className=\"border border-slate-200 rounded-lg p-4\">
+                  <div className=\"text-sm text-slate-600 mb-1\">Replied</div>
+                  <div className=\"text-xl font-bold text-purple-600\">{analytics.replied}</div>
+                </div>
+                <div className=\"border border-slate-200 rounded-lg p-4\">
+                  <div className=\"text-sm text-slate-600 mb-1\">Failed</div>
+                  <div className=\"text-xl font-bold text-red-600\">{analytics.failed}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className=\"p-6 border-t border-slate-200 flex justify-end\">
               <button
-                onClick={() => setShowAnalytics(false)}
-                className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg font-medium transition-colors"
+                onClick={() => {
+                  setShowAnalytics(false);
+                  setSelectedCampaign(null);
+                  setAnalytics(null);
+                }}
+                className=\"px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg transition-colors\"
               >
                 Close
               </button>
