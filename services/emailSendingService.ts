@@ -1,15 +1,13 @@
 import { EmailLog } from './emailCampaignService';
 import { getSettings } from './storageService';
+import { BusinessLead } from '../types';
 
 interface EmailSendRequest {
-  action: string;
-  emailLogId: string;
-  campaignId: string;
-  leadId: string;
   to: string;
   subject: string;
   body: string;
-  callbackUrl: string;
+  from_name?: string;
+  from_email?: string;
 }
 
 interface EmailSendResponse {
@@ -34,13 +32,8 @@ class EmailSendingService {
     return !!webhookUrl && webhookUrl.trim().length > 0;
   }
 
-  // Get callback URL for tracking
-  getCallbackUrl(): string {
-    return `${window.location.origin}/api/email-tracking/status`;
-  }
-
   // Send email via N8N webhook
-  async sendEmail(emailLog: EmailLog): Promise<EmailSendResponse> {
+  async sendEmail(emailLog: EmailLog & { to: string }): Promise<EmailSendResponse> {
     const webhookUrl = await this.getN8NWebhookUrl();
     
     if (!webhookUrl) {
@@ -52,29 +45,28 @@ class EmailSendingService {
       };
     }
 
-    try {
-      // Extract recipient email from body (format: "To: email@example.com")
-      const emailMatch = emailLog.body.match(/To:\s*([^\n]+)/);
-      const recipientEmail = emailMatch ? emailMatch[1].trim() : '';
+    if (!emailLog.to) {
+      return {
+        success: false,
+        message: 'No recipient email address',
+        error: 'Email log missing recipient address',
+      };
+    }
 
-      if (!recipientEmail) {
-        throw new Error('No recipient email found in email body');
-      }
+    try {
+      const settings = await getSettings();
 
       // Prepare email data for N8N workflow
       const emailData: EmailSendRequest = {
-        action: 'send_email',
-        emailLogId: emailLog.id,
-        campaignId: emailLog.campaignId,
-        leadId: emailLog.leadId,
-        to: recipientEmail,
+        to: emailLog.to,
         subject: emailLog.subject,
         body: emailLog.body,
-        callbackUrl: this.getCallbackUrl(),
+        from_name: settings.userName || 'LocalLead Engine',
+        from_email: settings.userName ? `${settings.userName.toLowerCase().replace(/\s+/g, '.')}@yourdomain.com` : undefined,
       };
 
       console.log('Sending email via N8N:', {
-        to: recipientEmail,
+        to: emailLog.to,
         subject: emailLog.subject,
         webhookUrl: webhookUrl.substring(0, 50) + '...',
       });
@@ -89,7 +81,8 @@ class EmailSendingService {
       });
 
       if (!response.ok) {
-        throw new Error(`N8N webhook failed: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`N8N webhook failed: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
@@ -124,8 +117,80 @@ class EmailSendingService {
     }
   }
 
+  // Send single email directly (for Leads Manager)
+  async sendSingleEmail(
+    to: string,
+    subject: string,
+    body: string
+  ): Promise<EmailSendResponse> {
+    const webhookUrl = await this.getN8NWebhookUrl();
+    
+    if (!webhookUrl) {
+      return {
+        success: false,
+        message: 'N8N webhook URL not configured',
+        error: 'Please configure N8N webhook URL in Settings',
+      };
+    }
+
+    try {
+      const settings = await getSettings();
+
+      const emailData: EmailSendRequest = {
+        to,
+        subject,
+        body,
+        from_name: settings.userName || 'LocalLead Engine',
+      };
+
+      console.log('Sending single email via N8N:', { to, subject });
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(emailData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`N8N webhook failed: ${response.status} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Single email sent successfully:', result);
+
+      return {
+        success: true,
+        message: 'Email sent successfully',
+      };
+    } catch (error) {
+      console.error('Failed to send single email:', error);
+      return {
+        success: false,
+        message: 'Failed to send email',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  // Send WhatsApp message (placeholder for future implementation)
+  async sendWhatsApp(
+    phone: string,
+    message: string
+  ): Promise<EmailSendResponse> {
+    // TODO: Implement WhatsApp sending via N8N or WhatsApp Business API
+    console.log('WhatsApp sending not yet implemented:', { phone, message });
+    return {
+      success: false,
+      message: 'WhatsApp sending not yet implemented',
+      error: 'Feature coming soon',
+    };
+  }
+
   // Send batch of emails with delay
-  async sendBatch(emailLogs: EmailLog[], delayMs: number = 2000): Promise<{
+  async sendBatch(emailLogs: (EmailLog & { to: string })[], delayMs: number = 2000): Promise<{
     sent: number;
     failed: number;
   }> {
@@ -164,89 +229,22 @@ class EmailSendingService {
     localStorage.setItem(this.logsKey, JSON.stringify(logs));
   }
 
-  // Handle email open tracking
-  async handleEmailOpen(emailLogId: string): Promise<void> {
-    const logsData = localStorage.getItem(this.logsKey);
-    if (!logsData) return;
-
-    const logs: EmailLog[] = JSON.parse(logsData);
-    const log = logs.find(l => l.id === emailLogId);
-    
-    if (!log) return;
-
-    // Update status to opened if not already
-    if (log.status === 'sent') {
-      await this.updateEmailLog(emailLogId, {
-        status: 'opened',
-        openedAt: new Date().toISOString(),
-        metadata: {
-          ...log.metadata,
-          opens: (log.metadata?.opens || 0) + 1,
-          lastOpenedAt: new Date().toISOString(),
-        },
-      });
-    } else if (log.status === 'opened' || log.status === 'clicked' || log.status === 'replied') {
-      // Just increment open count
-      await this.updateEmailLog(emailLogId, {
-        metadata: {
-          ...log.metadata,
-          opens: (log.metadata?.opens || 0) + 1,
-          lastOpenedAt: new Date().toISOString(),
-        },
-      });
-    }
-  }
-
-  // Handle email click tracking
-  async handleEmailClick(emailLogId: string, url: string): Promise<void> {
-    const logsData = localStorage.getItem(this.logsKey);
-    if (!logsData) return;
-
-    const logs: EmailLog[] = JSON.parse(logsData);
-    const log = logs.find(l => l.id === emailLogId);
-    
-    if (!log) return;
-
-    // Update status to clicked if not already replied
-    if (log.status !== 'replied') {
-      await this.updateEmailLog(emailLogId, {
-        status: 'clicked',
-        clickedAt: new Date().toISOString(),
-        metadata: {
-          ...log.metadata,
-          clicks: (log.metadata?.clicks || 0) + 1,
-          lastClickedAt: new Date().toISOString(),
-          lastClickedUrl: url,
-        },
-      });
-    } else {
-      // Just increment click count
-      await this.updateEmailLog(emailLogId, {
-        metadata: {
-          ...log.metadata,
-          clicks: (log.metadata?.clicks || 0) + 1,
-          lastClickedAt: new Date().toISOString(),
-          lastClickedUrl: url,
-        },
-      });
-    }
-  }
-
   // Process scheduled emails (call this periodically)
   async processScheduledEmails(): Promise<void> {
     const logsData = localStorage.getItem(this.logsKey);
     if (!logsData) return;
 
-    const logs: EmailLog[] = JSON.parse(logsData);
+    const logs: (EmailLog & { to?: string })[] = JSON.parse(logsData);
     const now = new Date();
 
     // Find emails scheduled for now or earlier
     const scheduledEmails = logs.filter(log => {
       if (log.status !== 'scheduled') return false;
+      if (!log.to) return false; // Skip if no recipient email
       
       const scheduledDate = new Date(log.scheduledFor);
       return scheduledDate <= now;
-    });
+    }) as (EmailLog & { to: string })[];
 
     if (scheduledEmails.length === 0) {
       console.log('No emails scheduled for sending');
@@ -255,81 +253,10 @@ class EmailSendingService {
 
     console.log(`Processing ${scheduledEmails.length} scheduled emails...`);
 
-    // Send emails with 2 second delay between each
+    // Send emails with 2-second delay between each
     const result = await this.sendBatch(scheduledEmails, 2000);
-    
-    console.log(`Sent ${result.sent} emails, ${result.failed} failed`);
-  }
 
-  // Get email logs
-  async getEmailLogs(campaignId?: string): Promise<EmailLog[]> {
-    const data = localStorage.getItem(this.logsKey);
-    const logs: EmailLog[] = data ? JSON.parse(data) : [];
-    return campaignId ? logs.filter(log => log.campaignId === campaignId) : logs;
-  }
-
-  // Test N8N connection
-  async testN8NConnection(): Promise<{ success: boolean; message: string }> {
-    const webhookUrl = await this.getN8NWebhookUrl();
-    
-    if (!webhookUrl) {
-      return {
-        success: false,
-        message: 'N8N webhook URL not configured. Please add it in Settings.',
-      };
-    }
-
-    try {
-      console.log('Testing N8N connection:', webhookUrl);
-
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'test_connection',
-          test: true,
-          message: 'Connection test from LocalLead Engine',
-          timestamp: new Date().toISOString(),
-        }),
-      });
-
-      if (!response.ok) {
-        return {
-          success: false,
-          message: `N8N webhook returned ${response.status}: ${response.statusText}`,
-        };
-      }
-
-      const result = await response.json();
-
-      return {
-        success: true,
-        message: 'N8N connection successful! Your workflow is ready to send emails.',
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Unknown error connecting to N8N',
-      };
-    }
-  }
-
-  // Get N8N status
-  async getN8NStatus(): Promise<{
-    configured: boolean;
-    webhookUrl: string | null;
-    ready: boolean;
-  }> {
-    const webhookUrl = await this.getN8NWebhookUrl();
-    const configured = !!webhookUrl;
-
-    return {
-      configured,
-      webhookUrl,
-      ready: configured,
-    };
+    console.log(`Email batch complete: ${result.sent} sent, ${result.failed} failed`);
   }
 }
 
