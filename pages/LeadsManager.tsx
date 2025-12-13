@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getLeads, updateLead, getCampaigns, deleteLead, getSettings } from '../services/storageService';
 import { enrichLeadData, generateContentCalendar, performDeepResearch } from '../services/geminiService';
 import { BusinessLead, Campaign } from '../types';
-import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X, Microscope, Globe, Zap, Edit, CheckCircle } from 'lucide-react';
+import { Download, Search, Sparkles, Loader2, Mail, Phone, Trash2, CalendarDays, X, Microscope, Globe, Zap, Edit, CheckCircle, MessageCircle } from 'lucide-react';
 import { emailEnrichmentService } from '../services/emailEnrichmentService';
 import { freeEnrichmentService } from '../services/freeEnrichmentService';
 import { supabase } from '../lib/supabase';
@@ -161,9 +161,9 @@ export const LeadsManager: React.FC = () => {
     setEditingLead(lead);
     setEditForm({
       name: lead.name,
-      email: lead.email,
-      phone: lead.phone,
-      website: lead.website,
+      email: lead.email || '',
+      phone: lead.phone || '',
+      website: lead.website || '',
       address: lead.address,
       category: lead.category,
     });
@@ -179,8 +179,42 @@ export const LeadsManager: React.FC = () => {
     setEditForm({});
   };
 
+  const handleWhatsAppMessage = (lead: BusinessLead) => {
+    if (!lead.phone) {
+      alert('No phone number available for this lead');
+      return;
+    }
+
+    // Get user settings for personalization
+    const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
+    const userName = settings.userName || 'Your Name';
+    const companyName = settings.companyName || 'Your Company';
+
+    // Clean phone number (remove spaces, dashes, etc.)
+    const cleanPhone = lead.phone.replace(/[^0-9+]/g, '');
+    
+    // Create WhatsApp message template
+    const message = `Hi ${lead.name} team! 👋
+
+I came across your business and was impressed by your ${lead.rating ? lead.rating + '⭐ rating' : 'presence'} in ${lead.city}.
+
+I'm ${userName} from ${companyName}, and I help businesses like yours grow through digital marketing.
+
+Would you be interested in a quick chat about how we can help you attract more customers?
+
+Best regards,
+${userName}
+${companyName}
+
+Learn more: https://tr.ee/itskiranbabu`;
+
+    // Open WhatsApp with pre-filled message
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const exportToCSV = () => {
-    const headers = ['Name', 'Email', 'Phone', 'Website', 'Address', 'City', 'Category', 'Status', 'Campaign'];
+    const headers = ['Name', 'Email', 'Phone', 'Website', 'Address', 'City', 'Category', 'Status', 'Rating', 'Reviews'];
     const rows = filteredLeads.map(lead => [
       lead.name,
       lead.email || '',
@@ -190,7 +224,8 @@ export const LeadsManager: React.FC = () => {
       lead.city,
       lead.category,
       lead.status,
-      campaigns.find(c => c.id === lead.campaignId)?.name || 'None'
+      lead.rating || '',
+      lead.reviews || ''
     ]);
 
     const csvContent = [
@@ -265,6 +300,7 @@ export const LeadsManager: React.FC = () => {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Name</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Contact</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Email</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Location</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Category</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase">Status</th>
@@ -285,16 +321,23 @@ export const LeadsManager: React.FC = () => {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {lead.email && (
-                      <div className="flex items-center gap-1 text-sm text-slate-600">
-                        <Mail size={14} />
-                        {lead.email}
-                      </div>
-                    )}
                     {lead.phone && (
                       <div className="flex items-center gap-1 text-sm text-slate-600">
                         <Phone size={14} />
                         {lead.phone}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {lead.email ? (
+                      <div className="flex items-center gap-2">
+                        <Mail size={14} className="text-green-600" />
+                        <span className="text-sm text-slate-700">{lead.email}</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <X size={14} className="text-red-500" />
+                        <span className="text-xs text-slate-400">Not enriched</span>
                       </div>
                     )}
                   </td>
@@ -348,6 +391,18 @@ export const LeadsManager: React.FC = () => {
                           <Sparkles size={18} />
                         )}
                       </button>
+                      
+                      {/* WhatsApp button - only show if no email */}
+                      {!lead.email && lead.phone && (
+                        <button
+                          onClick={() => handleWhatsAppMessage(lead)}
+                          className="text-green-600 hover:text-green-700 p-1 rounded hover:bg-green-50 transition-colors"
+                          title="Send WhatsApp Message"
+                        >
+                          <MessageCircle size={18} />
+                        </button>
+                      )}
+                      
                       <button
                         onClick={() => handleDeepResearch(lead)}
                         className="text-blue-600 hover:text-blue-700 p-1 rounded hover:bg-blue-50 transition-colors"
@@ -385,18 +440,11 @@ export const LeadsManager: React.FC = () => {
         </div>
       </div>
 
-      {filteredLeads.length === 0 && (
-        <div className="text-center py-12 text-slate-500">
-          <Search size={48} className="mx-auto mb-4 opacity-50" />
-          <p>No leads found. Try adjusting your filters or search for new leads.</p>
-        </div>
-      )}
-
       {/* Enrichment Results Modal */}
       {enrichmentResults && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-6 rounded-t-xl">
+            <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 rounded-t-xl">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-2xl font-bold mb-2">✨ Email Enrichment Results</h3>
@@ -548,8 +596,8 @@ export const LeadsManager: React.FC = () => {
                         <div>
                           <h4 className="font-semibold text-slate-800 mb-2">Ice Breakers</h4>
                           <ul className="list-disc list-inside space-y-1">
-                            {researchResult.iceBreakers.map((ib: string, idx: number) => (
-                              <li key={idx} className="text-slate-700">{ib}</li>
+                            {researchResult.iceBreakers.map((ib: string, i: number) => (
+                              <li key={i} className="text-slate-700">{ib}</li>
                             ))}
                           </ul>
                         </div>
@@ -558,8 +606,8 @@ export const LeadsManager: React.FC = () => {
                         <div>
                           <h4 className="font-semibold text-slate-800 mb-2">Recent News</h4>
                           <ul className="list-disc list-inside space-y-1">
-                            {researchResult.news.map((n: string, idx: number) => (
-                              <li key={idx} className="text-slate-700">{n}</li>
+                            {researchResult.news.map((n: string, i: number) => (
+                              <li key={i} className="text-slate-700">{n}</li>
                             ))}
                           </ul>
                         </div>
@@ -577,11 +625,11 @@ export const LeadsManager: React.FC = () => {
       {editingLead && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full">
-            <div className="bg-gradient-to-r from-slate-700 to-slate-900 text-white p-6 rounded-t-xl">
+            <div className="bg-gradient-to-r from-slate-600 to-slate-700 text-white p-6 rounded-t-xl">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-2xl font-bold mb-2">✏️ Edit Lead</h3>
-                  <p className="text-slate-300">{editingLead.name}</p>
+                  <p className="text-slate-200">{editingLead.name}</p>
                 </div>
                 <button
                   onClick={() => setEditingLead(null)}
@@ -594,7 +642,7 @@ export const LeadsManager: React.FC = () => {
             
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Name</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Business Name</label>
                 <input
                   type="text"
                   value={editForm.name || ''}
@@ -602,7 +650,7 @@ export const LeadsManager: React.FC = () => {
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
                 <input
@@ -610,9 +658,10 @@ export const LeadsManager: React.FC = () => {
                   value={editForm.email || ''}
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="contact@business.com"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Phone</label>
                 <input
@@ -620,9 +669,10 @@ export const LeadsManager: React.FC = () => {
                   value={editForm.phone || ''}
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="+91 98765 43210"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Website</label>
                 <input
@@ -630,9 +680,10 @@ export const LeadsManager: React.FC = () => {
                   value={editForm.website || ''}
                   onChange={(e) => setEditForm({ ...editForm, website: e.target.value })}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="https://business.com"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Address</label>
                 <input
@@ -642,7 +693,7 @@ export const LeadsManager: React.FC = () => {
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">Category</label>
                 <input
@@ -652,7 +703,7 @@ export const LeadsManager: React.FC = () => {
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              
+
               <div className="flex gap-3 pt-4">
                 <button
                   onClick={handleSaveEdit}
